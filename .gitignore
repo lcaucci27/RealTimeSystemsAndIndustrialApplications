@@ -1,0 +1,87 @@
+# Compiled Binaries
+*.elf
+*.o
+*.ko
+*.a
+*.so
+*.so.*
+*.dtb
+*.dtbo
+
+# Build Artifacts
+*.d
+*.cmd
+*.mod
+*.mod.c
+*.symvers
+*.order
+modules.order
+Module.symvers
+
+# Vitis/Vivado
+*.log
+*.jou
+*.str
+*.xpr
+.Xil/
+*.cache/
+*.data/
+*.runs/
+*.hw/
+*.ip_user_files/
+*.sim/
+vivado*.backup.*
+fsbl*.elf
+*.bit
+*.ltx
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Analysis Output
+output/
+*.png
+*.pdf
+*_report.txt
+*_stats.csv
+*_table.tex
+
+# Results (keep example, ignore new data)
+results/*.csv
+!results/results.csv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Temporary Files
+*.tmp
+*.bak
+*.backup
+*.orig
+
+# Petalinux
+components/
+build/
+images/
+pre-built/
+*.old
+
+# System
+.directory
+Thumbs.db
