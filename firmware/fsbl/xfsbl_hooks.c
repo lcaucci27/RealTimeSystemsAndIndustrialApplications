@@ -112,7 +112,7 @@ u32 XFsbl_HookBeforeFallback(void)
 
 /*****************************************************************************
 *
-* Modifiche per abilitare la Coerenza I/O tra APU e RPU
+* Modifications to enable I/O Coherence between APU and RPU
 * File: xfsbl_hooks.c
 *
 ******************************************************************************/
@@ -122,20 +122,20 @@ u32 XFsbl_HookBeforeFallback(void)
 #include "xparameters.h"
 #include "xfsbl_hw.h"
 
-// Usa le definizioni già presenti in xfsbl_hw.h per RPU_RPU_0_CFG e RPU_RPU_1_CFG
-// NON ridefinirle!
+// Use definitions already present in xfsbl_hw.h for RPU_RPU_0_CFG and RPU_RPU_1_CFG
+// DON'T redefine them!
 
-// Altri indirizzi necessari
+// Other addresses we need
 #define CCI_SNOOP_CTRL_S3 0xFD6E4000U
 #define LPD_SLCR_LPD_APU 0xFF41A040U
 
-// Valori da scrivere
+// Values to write
 #define RPU_CFG_COHERENT 0x00000002U  // Bit 1: COHERENT
 #define CCI_SNOOP_ENABLE 0x00000003U  // Bit 0: enable, Bit 1: support_dvm
 #define LPD_APU_BROADCAST 0x00000003U // Bit 0: brdc_inner, Bit 1: brdc_outer
 
 /*****************************************************************************
-* Modifiche per abilitare la Coerenza I/O tra APU e RPU
+* Attempted modifications to enable I/O Coherence between APU and RPU
 ******************************************************************************/
 
 #include "xil_io.h"
@@ -148,13 +148,16 @@ u32 XFsbl_HookPsuInit(void)
 	u32 Status;
 	// u32 rpu0_cfg;
 
-	// Inizializzazione base sistema
+	// Run basic system initialization
 	Status = (u32)psu_init();
 	if (Status != XFSBL_SUCCESS) {
 		return Status;
 	}
 
-	// Conferma configurazione coerenza
+	// The following coherence config is commented out because it doesn't work
+	// Leaving it here to document what we tried
+
+	// APU broadcast configuration
 	//Xil_Out32(0xFF41A040U, 0x00000003U);
 
 	// CCI-400: enable snoop + DVM support

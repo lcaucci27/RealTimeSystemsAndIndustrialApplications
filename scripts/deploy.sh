@@ -1,26 +1,22 @@
 #!/bin/bash
 #
-# Deploy Firmware and Applications to Kria KR260
-#
-# This script copies compiled binaries to the target board via SCP.
+# Deploy script - copies all the compiled stuff to the Kria board
 #
 # Usage: ./deploy.sh [board_ip]
 #   board_ip: Optional, defaults to 192.168.1.100
 #
-# Environment variables:
-#   BOARD_IP: Target board IP address
-#   BOARD_USER: SSH username (default: root)
+# You can also set BOARD_IP and BOARD_USER as environment variables
 #
 
-set -e  # Exit on error
+set -e  # Stop if anything goes wrong
 
-# Configuration
+# Config - override with args or env vars
 BOARD_IP="${1:-${BOARD_IP:-192.168.1.100}}"
 BOARD_USER="${BOARD_USER:-root}"
 FIRMWARE_DIR="/lib/firmware"
 APP_DIR="/home/root"
 
-# Paths
+# Figure out where our project files are
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 RPU_FIRMWARE_DIR="${PROJECT_ROOT}/firmware/rpu"
 APU_APP_DIR="${PROJECT_ROOT}/linux/applications"
@@ -35,7 +31,7 @@ echo "App Dir:      ${APP_DIR}"
 echo "========================================="
 echo ""
 
-# Check connectivity
+# Make sure we can actually reach the board
 echo "[1/5] Testing connection to board..."
 if ! ping -c 1 -W 2 "$BOARD_IP" > /dev/null 2>&1; then
     echo "ERROR: Cannot reach board at $BOARD_IP"
@@ -58,7 +54,7 @@ fi
 echo "Connection OK!"
 echo ""
 
-# Deploy RPU firmware
+# Copy RPU firmware files
 echo "[2/5] Deploying RPU firmware..."
 
 RPU_FILES=(
@@ -87,7 +83,7 @@ else
 fi
 echo ""
 
-# Deploy APU applications
+# Copy APU applications
 echo "[3/5] Deploying APU applications..."
 
 APU_FILES=(
@@ -101,6 +97,7 @@ for FILE in "${APU_FILES[@]}"; do
     if [ -f "$FULL_PATH" ]; then
         echo "  Copying $FILE..."
         scp -q "$FULL_PATH" "${BOARD_USER}@${BOARD_IP}:${APP_DIR}/"
+        # Make sure it's executable
         ssh "${BOARD_USER}@${BOARD_IP}" "chmod +x ${APP_DIR}/${FILE}"
         DEPLOYED_COUNT=$((DEPLOYED_COUNT + 1))
     fi
@@ -115,7 +112,7 @@ else
 fi
 echo ""
 
-# Deploy kernel modules
+# Copy kernel modules if we have them
 echo "[4/5] Deploying kernel modules..."
 
 KERNEL_FILES=(
@@ -139,7 +136,7 @@ else
 fi
 echo ""
 
-# Deploy setup script
+# Also send the setup script so it's available on the board
 echo "[5/5] Deploying setup script..."
 SETUP_SCRIPT="${PROJECT_ROOT}/scripts/setup_experiment.sh"
 if [ -f "$SETUP_SCRIPT" ]; then
@@ -151,7 +148,7 @@ else
 fi
 echo ""
 
-# Summary
+# Show what we just deployed
 echo "========================================="
 echo "Deployment Summary"
 echo "========================================="

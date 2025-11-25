@@ -1,134 +1,134 @@
-# Guida Setup Kria KR260 per Esperimenti Cache Coherence
+# KR260 Setup Guide for Cache Coherence Experiments
 
-Questa guida descrive come configurare la Xilinx Kria KR260 Starter Kit per eseguire gli esperimenti di cache coherence.
+This guide walks through setting up the Xilinx Kria KR260 Starter Kit to run the cache coherence experiments.
 
 ---
 
-## 📦 Requisiti Hardware
+## 📦 Hardware Requirements
 
-### Componenti Necessari
+### What You Need
 
 1. **Xilinx Kria KR260 Starter Kit**
-   - Som Kria K26 (Zynq UltraScale+ MPSoC XCZU5EV)
-   - Carrier Card KR260
-   - Alimentatore 12V/3A incluso
+   - Kria K26 SOM (Zynq UltraScale+ MPSoC XCZU5EV)
+   - KR260 Carrier Card
+   - 12V/3A power adapter (included)
 
-2. **Accessori**
-   - microSD card (16GB o superiore, classe 10)
-   - Cavo Ethernet (connessione di rete)
-   - Cavo USB-A to micro-USB (console seriale)
-   - PC/Laptop con Linux (Ubuntu 20.04+ raccomandato)
+2. **Accessories**
+   - microSD card (16GB or larger, class 10)
+   - Ethernet cable (for network connection)
+   - USB-A to micro-USB cable (serial console)
+   - PC/Laptop with Linux (Ubuntu 20.04+ recommended)
 
-### Specifiche Hardware Rilevanti
+### Relevant Hardware Specs
 
 ```
 CPU (APU):
 - 4× ARM Cortex-A53 @ 1.33 GHz
 - 32KB I-cache + 32KB D-cache (L1) per core
-- 1MB L2 cache condivisa
-- MMU con supporto TrustZone
+- 1MB shared L2 cache
+- MMU with TrustZone support
 
 CPU (RPU):
 - 2× ARM Cortex-R5F @ 533 MHz
 - 32KB I-cache + 32KB D-cache (L1) per core
 - 128KB TCM per core (Tightly-Coupled Memory)
-- MPU per protezione memoria
+- MPU for memory protection
 
-Memoria:
+Memory:
 - 4GB LPDDR4 @ 2400 MT/s
-- Bandwidth teorico: ~38 GB/s
+- Theoretical bandwidth: ~38 GB/s
 
 Interconnect:
 - ARM CCI-400 (Cache Coherent Interconnect)
   * Bus width: 128-bit
-  * Frequenza: 533 MHz (stimata)
-  * Supporto ACE (AXI Coherency Extensions)
+  * Frequency: 533 MHz (estimated)
+  * ACE support (AXI Coherency Extensions)
   * 4× ACE master ports, 2× ACE-Lite ports
 ```
 
 ---
 
-## 💿 Preparazione SD Card
+## 💿 SD Card Preparation
 
-### Opzione 1: Immagine Precompilata Ubuntu (Raccomandato)
+### Option 1: Pre-built Ubuntu Image (Recommended)
 
-1. **Download immagine Canonical Ubuntu per Kria**
+1. **Download Canonical Ubuntu for Kria**
    ```bash
-   # Vai su: https://ubuntu.com/download/xilinx
-   # Scarica: ubuntu-22.04.x-iot-kria-classic-k26-som-XX.img.xz
+   # Go to: https://ubuntu.com/download/xilinx
+   # Download: ubuntu-22.04.x-iot-kria-classic-k26-som-XX.img.xz
    ```
 
-2. **Flash su SD card**
+2. **Flash to SD card**
    ```bash
-   # Su Linux
+   # On Linux
    xzcat ubuntu-22.04.x-iot-kria-k26-som.img.xz | sudo dd of=/dev/sdX bs=4M status=progress
    sync
    
-   # Su Windows: usare Balena Etcher
+   # On Windows: use Balena Etcher
    # https://www.balena.io/etcher/
    ```
 
-3. **Prima configurazione**
-   - Inserire SD in slot KR260
-   - Connettere UART (115200 8N1)
-   - Boot (username/password default: ubuntu/ubuntu)
-   - Completare setup iniziale
+3. **Initial setup**
+   - Insert SD into KR260 slot
+   - Connect UART (115200 8N1)
+   - Boot (default username/password: ubuntu/ubuntu)
+   - Complete initial setup
 
-### Opzione 2: Build Custom con PetaLinux
+### Option 2: Custom Build with PetaLinux
 
-Per modifiche al device tree o kernel:
+For device tree or kernel modifications:
 
-1. **Setup ambiente PetaLinux 2022.2**
+1. **Setup PetaLinux 2022.2 environment**
    ```bash
-   # Installare PetaLinux Tools 2022.2
+   # Install PetaLinux Tools 2022.2
    # https://www.xilinx.com/support/download/index.html/content/xilinx/en/downloadNav/embedded-design-tools.html
    
    source /tools/Xilinx/PetaLinux/2022.2/settings.sh
    ```
 
-2. **Creare progetto**
+2. **Create project**
    ```bash
    petalinux-create -t project --template zynqMP -n kr260_project
    cd kr260_project
    
-   # Importare BSP ufficiale KR260 se disponibile
+   # Import official KR260 BSP if available
    # petalinux-config --get-hw-description=path/to/kria-kr260.xsa
    ```
 
-3. **Configurare kernel**
+3. **Configure kernel**
    ```bash
    petalinux-config -c kernel
-   # Abilitare:
+   # Enable:
    # - CONFIG_REMOTEPROC=y
    # - CONFIG_ZYNQMP_R5_REMOTEPROC=y
    # - CONFIG_RPMSG=y
    # - CONFIG_VIRTIO=y
    ```
 
-4. **Aggiungere device tree custom**
+4. **Add custom device tree**
    ```bash
-   # Copiare system-user.dtsi in:
+   # Copy system-user.dtsi to:
    # project-spec/meta-user/recipes-bsp/device-tree/files/
    
    cp /path/to/system-user.dtsi \
       project-spec/meta-user/recipes-bsp/device-tree/files/
    ```
 
-5. **Build e deploy**
+5. **Build and deploy**
    ```bash
    petalinux-build
    petalinux-package --boot --fsbl --fpga --u-boot --force
    
-   # Files generati in images/linux/:
+   # Generated files in images/linux/:
    # - boot.scr, BOOT.BIN, image.ub, boot.bin
-   # Copiare su partition 1 della SD card
+   # Copy to partition 1 of SD card
    ```
 
 ---
 
-## 🔌 Connessioni Hardware
+## 🔌 Hardware Connections
 
-### Setup Fisico
+### Physical Setup
 
 ```
 ┌─────────────────────────────────────┐
@@ -153,41 +153,41 @@ Per modifiche al device tree o kernel:
               └───────────────────────┘
 ```
 
-### Connessione Seriale
+### Serial Connection
 
-1. **Connettere cavo USB-micro**
-   - Porta J4 su KR260
-   - 4× porte seriali virtuali appaiono su PC
+1. **Connect USB-micro cable**
+   - Port J4 on KR260
+   - 4× virtual serial ports appear on PC
 
-2. **Identificare porte**
+2. **Identify ports**
    ```bash
    ls -l /dev/ttyUSB*
-   # Tipicamente:
-   # /dev/ttyUSB0 → JTAG UART (non usata)
+   # Typically:
+   # /dev/ttyUSB0 → JTAG UART (not used)
    # /dev/ttyUSB1 → System Controller
-   # /dev/ttyUSB2 → Linux console (APU) ← QUESTA
-   # /dev/ttyUSB3 → (non usata)
+   # /dev/ttyUSB2 → Linux console (APU) ← THIS ONE
+   # /dev/ttyUSB3 → (not used)
    ```
 
-3. **Aprire console**
+3. **Open console**
    ```bash
-   # Usando screen
+   # Using screen
    screen /dev/ttyUSB2 115200
    
-   # Usando minicom
+   # Using minicom
    minicom -D /dev/ttyUSB2 -b 115200
    
-   # Usando PuTTY (GUI)
+   # Using PuTTY (GUI)
    # Serial: /dev/ttyUSB2
    # Speed: 115200
    # Data bits: 8, Parity: None, Stop bits: 1
    ```
 
-### Connessione di Rete
+### Network Connection
 
-1. **Configurazione IP statico (raccomandato)**
+1. **Static IP configuration (recommended)**
    ```bash
-   # Su KR260 (via UART)
+   # On KR260 (via UART)
    sudo nano /etc/netplan/01-netcfg.yaml
    ```
    
@@ -209,61 +209,61 @@ Per modifiche al device tree o kernel:
    sudo netplan apply
    ```
 
-2. **Test connessione da PC**
+2. **Test connection from PC**
    ```bash
    ping 192.168.1.100
-   ssh ubuntu@192.168.1.100  # o root se configurato
+   ssh ubuntu@192.168.1.100  # or root if configured
    ```
 
 ---
 
-## ⚙️ Configurazione Software
+## ⚙️ Software Configuration
 
-### 1. Verificare Remoteproc
+### 1. Check Remoteproc
 
 ```bash
-# Su KR260
+# On KR260
 ls -l /sys/class/remoteproc/
-# Dovrebbe mostrare: remoteproc0 → zynqmp_r5_remoteproc
+# Should show: remoteproc0 → zynqmp_r5_remoteproc
 
 cat /sys/class/remoteproc/remoteproc0/name
 # Output: zynqmp_r5_remoteproc
 
 cat /sys/class/remoteproc/remoteproc0/state
-# Output: offline (o running se RPU già caricato)
+# Output: offline (or running if RPU already loaded)
 ```
 
-Se `remoteproc0` non esiste:
+If `remoteproc0` doesn't exist:
 
 ```bash
-# Verificare modulo kernel
+# Check kernel module
 lsmod | grep remoteproc
-# Dovrebbe mostrare: zynqmp_r5_remoteproc
+# Should show: zynqmp_r5_remoteproc
 
-# Se non presente, caricare manualmente
+# If not present, load manually
 sudo modprobe zynqmp_r5_remoteproc
 ```
 
-### 2. Configurare Memoria Condivisa
+### 2. Configure Shared Memory
 
 ```bash
-# Verificare reserved memory nel device tree
+# Check reserved memory in device tree
 cat /proc/iomem | grep rproc
-# Output atteso:
+# Expected output:
 # 3ed00000-3ed3ffff : rproc@3ed00000
 # 3ed40000-3ed43fff : rpu0vdev0vring0@3ed40000
 # ...
 
-# Verificare flag dma-coherent (se configurato)
+# Check dma-coherent flag (if configured)
 find /sys/firmware/devicetree/base -name dma-coherent
-# Se presente: indica che coerenza è abilitata nel DT
-# NOTA: non garantisce CCI-400 funzionante!
+# If present: indicates coherence is enabled in DT
+# NOTE: doesn't guarantee CCI-400 is working!
 ```
 
-### 3. Installare Tool di Sviluppo
+### 3. Install Development Tools
 
 ```bash
-# Su KR260
+# On KR260
 sudo apt-get update
 sudo apt-get install -y \
     build-essential \
@@ -273,7 +273,7 @@ sudo apt-get install -y \
     kmod
 ```
 
-### 4. Setup Cross-Compilation (su PC)
+### 4. Setup Cross-Compilation (on PC)
 
 ```bash
 # Download ARM64 toolchain
@@ -285,11 +285,11 @@ aarch64-linux-gnu-gcc --version
 
 ---
 
-## 🧪 Test Iniziale
+## 🧪 Initial Testing
 
 ### Quick Test: Echo via Remoteproc
 
-1. **Creare firmware minimale**
+1. **Create minimal firmware**
    ```c
    // test_echo.c
    #include "xil_printf.h"
@@ -304,29 +304,29 @@ aarch64-linux-gnu-gcc --version
    }
    ```
 
-2. **Compilare con Vitis** (su PC con Vitis installato)
+2. **Compile with Vitis** (on PC with Vitis installed)
 
-3. **Deploy e test**
+3. **Deploy and test**
    ```bash
    # Copy to KR260
    scp test_echo.elf ubuntu@192.168.1.100:/lib/firmware/
    
-   # Su KR260
+   # On KR260
    echo test_echo.elf > /sys/class/remoteproc/remoteproc0/firmware
    echo start > /sys/class/remoteproc/remoteproc0/state
    
-   # Visualizzare output RPU
+   # View RPU output
    cat /sys/kernel/debug/remoteproc/remoteproc0/trace0
-   # Dovrebbe mostrare: "Hello from RPU!" e "RPU alive"
+   # Should show: "Hello from RPU!" and "RPU alive"
    ```
 
-### Test Device Tree
+### Device Tree Test
 
 ```bash
-# Dump device tree compilato
+# Dump compiled device tree
 dtc -I dtb -O dts /boot/system.dtb -o /tmp/system.dts
 
-# Verificare sezioni chiave
+# Check key sections
 grep -A 20 "reserved-memory" /tmp/system.dts
 grep -A 30 "rf5ss" /tmp/system.dts
 ```
@@ -335,65 +335,65 @@ grep -A 30 "rf5ss" /tmp/system.dts
 
 ## 🔧 Troubleshooting
 
-### Problema: Remoteproc non disponibile
+### Problem: Remoteproc not available
 
 ```bash
-# Verificare kernel config
+# Check kernel config
 zcat /proc/config.gz | grep REMOTEPROC
-# Dovrebbe mostrare:
+# Should show:
 # CONFIG_REMOTEPROC=y
 # CONFIG_ZYNQMP_R5_REMOTEPROC=y
 
-# Se non presente, rebuild kernel con opzioni abilitate
+# If not present, rebuild kernel with options enabled
 ```
 
-### Problema: RPU non parte
+### Problem: RPU won't start
 
 ```bash
-# Check dmesg per errori
+# Check dmesg for errors
 dmesg | grep -i remoteproc | tail -20
 
-# Errori comuni:
-# - "Failed to load firmware" → file .elf non trovato o corrotto
-# - "Failed to parse firmware" → .elf non compatibile (wrong arch/platform)
-# - "Failed to allocate memory" → reserved-memory non configurata
+# Common errors:
+# - "Failed to load firmware" → .elf file not found or corrupted
+# - "Failed to parse firmware" → .elf not compatible (wrong arch/platform)
+# - "Failed to allocate memory" → reserved-memory not configured
 ```
 
-### Problema: Shared memory non accessibile
+### Problem: Shared memory not accessible
 
 ```bash
-# Verificare permessi /dev/mem
+# Check /dev/mem permissions
 ls -l /dev/mem
-# Dovrebbe essere: crw------- root root
+# Should be: crw------- root root
 
-# Test accesso memoria (con cautela!)
+# Test memory access (be careful!)
 sudo devmem 0x3E000000
-# Dovrebbe ritornare valore (anche se random)
+# Should return a value (even if random)
 
-# Se fallisce: problema con device tree o MMU
+# If fails: problem with device tree or MMU
 ```
 
-### Problema: Network non raggiungibile
+### Problem: Network unreachable
 
 ```bash
-# Verificare interfaccia
+# Check interface
 ip addr show eth0
-# Dovrebbe mostrare IP configurato
+# Should show configured IP
 
-# Test link fisico
+# Test physical link
 ethtool eth0
 # Link detected: yes
 
 # Firewall
 sudo ufw status
-# Se active, potrebbe bloccare SSH
+# If active, might block SSH
 ```
 
 ---
 
-## 📚 Risorse Aggiuntive
+## 📚 Additional Resources
 
-### Documentazione Xilinx
+### Xilinx Documentation
 
 - [Kria KR260 Wiki](https://xilinx-wiki.atlassian.net/wiki/spaces/A/pages/1641152513/Kria+KR260+Robotics+Starter+Kit)
 - [Remoteproc User Guide](https://xilinx-wiki.atlassian.net/wiki/spaces/A/pages/18841976/RPU+OpenAMP+Communication)
@@ -404,12 +404,12 @@ sudo ufw status
 - [Xilinx Forums](https://support.xilinx.com/s/question/0D52E00006hpNeCCAU/kria-kr260)
 - [Kria GitHub](https://github.com/Xilinx/kria-apps-docs)
 
-### Tool Download
+### Tool Downloads
 
 - [Vitis 2022.2](https://www.xilinx.com/support/download.html)
 - [PetaLinux 2022.2](https://www.xilinx.com/support/download/index.html/content/xilinx/en/downloadNav/embedded-design-tools.html)
 
 ---
 
-**Ultimo aggiornamento:** Novembre 2024  
-**Testato su:** Kria KR260 (K26 SOM), Ubuntu 22.04, PetaLinux 2022.2
+**Last Updated:** November 2025 
+**Tested on:** Kria KR260 (K26 SOM), Ubuntu 22.04, PetaLinux 2022.2

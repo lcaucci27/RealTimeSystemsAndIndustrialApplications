@@ -1,27 +1,27 @@
 #!/bin/bash
 #
-# Run Performance Tests on Kria KR260
+# Automated test runner for Kria KR260 performance experiments
 #
-# This script automates the execution of performance tests:
+# What this does:
 # 1. Loads RPU firmware via Remoteproc
 # 2. Runs APU test application
-# 3. Collects results
+# 3. Grabs the results
 #
 # Usage: ./run_tests.sh [board_ip] [iterations]
 #   board_ip: Optional, defaults to 192.168.1.100
-#   iterations: Optional, number of iterations per packet size (default: 100)
+#   iterations: Optional, how many times to test each packet size (default: 100)
 #
 
-set -e  # Exit on error
+set -e  # Bail out if anything fails
 
-# Configuration
+# Basic config - can override with args
 BOARD_IP="${1:-${BOARD_IP:-192.168.1.100}}"
 BOARD_USER="${BOARD_USER:-root}"
 ITERATIONS="${2:-100}"
 OUTPUT_FILE="performance_results.csv"
 FIRMWARE_NAME="rpu_perf_test.elf"
 
-# Paths
+# Figure out where everything lives
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 RESULTS_DIR="${PROJECT_ROOT}/results"
 
@@ -35,7 +35,7 @@ echo "Output:      ${OUTPUT_FILE}"
 echo "========================================="
 echo ""
 
-# Check connectivity
+# Make sure we can actually reach the board
 echo "[1/6] Checking connection..."
 if ! ssh -o ConnectTimeout=5 "${BOARD_USER}@${BOARD_IP}" "echo OK" > /dev/null 2>&1; then
     echo "ERROR: Cannot connect to board"
@@ -45,7 +45,7 @@ fi
 echo "Connected!"
 echo ""
 
-# Check if files are deployed
+# Check if we already deployed the binaries
 echo "[2/6] Verifying deployment..."
 CHECK_CMD="test -f /lib/firmware/${FIRMWARE_NAME} && test -f /home/root/apu_perf_test && echo OK || echo MISSING"
 if ! ssh "${BOARD_USER}@${BOARD_IP}" "$CHECK_CMD" | grep -q "OK"; then
@@ -56,10 +56,10 @@ fi
 echo "Files verified!"
 echo ""
 
-# Stop any running RPU
+# Stop RPU if it's already running something else
 echo "[3/6] Preparing RPU..."
 ssh "${BOARD_USER}@${BOARD_IP}" << 'EOSSH'
-# Stop RPU if running
+# Check if RPU is currently running
 if [ -d /sys/class/remoteproc/remoteproc0 ]; then
     CURRENT_STATE=$(cat /sys/class/remoteproc/remoteproc0/state 2>/dev/null || echo "unknown")
     if [ "$CURRENT_STATE" = "running" ]; then
@@ -83,16 +83,16 @@ fi
 echo "RPU ready!"
 echo ""
 
-# Load and start RPU firmware
+# Load our firmware and start the RPU
 echo "[4/6] Loading RPU firmware..."
 ssh "${BOARD_USER}@${BOARD_IP}" << EOSSH
-# Set firmware
+# Tell remoteproc which firmware to use
 echo "${FIRMWARE_NAME}" > /sys/class/remoteproc/remoteproc0/firmware
 
-# Start RPU
+# Fire it up
 echo start > /sys/class/remoteproc/remoteproc0/state
 
-# Verify it started
+# Give it a moment to initialize
 sleep 2
 STATE=\$(cat /sys/class/remoteproc/remoteproc0/state)
 if [ "\$STATE" != "running" ]; then
@@ -116,7 +116,7 @@ if [ $? -ne 0 ]; then
 fi
 echo ""
 
-# Run APU test
+# Now run the actual test from APU side
 echo "[5/6] Running APU performance test..."
 echo "This will take several minutes (14 packet sizes × ${ITERATIONS} iterations)..."
 echo ""
@@ -124,16 +124,16 @@ echo ""
 ssh "${BOARD_USER}@${BOARD_IP}" << EOSSH
 cd /home/root
 
-# Run test
+# Execute the test
 sudo ./apu_perf_test ${ITERATIONS} ${OUTPUT_FILE}
 
-# Check if results were generated
+# Make sure we got results
 if [ ! -f ${OUTPUT_FILE} ]; then
     echo "ERROR: Results file not generated"
     exit 1
 fi
 
-# Show summary
+# Quick summary
 LINES=\$(wc -l < ${OUTPUT_FILE})
 echo ""
 echo "Test complete!"
@@ -147,7 +147,7 @@ if [ $? -ne 0 ]; then
 fi
 echo ""
 
-# Retrieve results
+# Pull results back to our machine
 echo "[6/6] Retrieving results..."
 mkdir -p "$RESULTS_DIR"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
@@ -162,7 +162,7 @@ if [ -f "$LOCAL_FILE" ]; then
     echo "  Lines: $LINES"
     echo "  Size:  $SIZE"
     
-    # Also save as latest
+    # Keep a "latest" version for convenience
     cp "$LOCAL_FILE" "${RESULTS_DIR}/${OUTPUT_FILE}"
     echo "  Copied to: ${RESULTS_DIR}/${OUTPUT_FILE}"
 else
@@ -171,12 +171,12 @@ else
 fi
 echo ""
 
-# Stop RPU
+# Clean shutdown of RPU
 echo "Stopping RPU..."
 ssh "${BOARD_USER}@${BOARD_IP}" "echo stop > /sys/class/remoteproc/remoteproc0/state" || true
 echo ""
 
-# Summary
+# All done, tell the user what to do next
 echo "========================================="
 echo "Test Execution Complete!"
 echo "========================================="

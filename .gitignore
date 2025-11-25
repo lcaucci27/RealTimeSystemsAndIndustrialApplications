@@ -57,11 +57,11 @@ output/
 *_stats.csv
 *_table.tex
 
-# Results (keep example, ignore new data)
+# Results - keep example data, ignore new measurements
 results/*.csv
 !results/results.csv
 
-# IDE
+# IDE and Editor Files
 .vscode/
 .idea/
 *.swp
@@ -75,13 +75,26 @@ results/*.csv
 *.backup
 *.orig
 
-# Petalinux
+# Petalinux Build
 components/
 build/
 images/
 pre-built/
 *.old
 
-# System
+# Device Tree Compiled
+device-tree/*.dtb
+
+# System Files
 .directory
 Thumbs.db
+
+# Kernel Module Build Artifacts
+kernel-modules/.tmp_versions/
+kernel-modules/*.symvers
+kernel-modules/*.order
+
+# Application Build Output
+applications/*.out
+applications/apu_perf_test
+applications/apu_coherency_test

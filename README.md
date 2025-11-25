@@ -9,7 +9,7 @@ Experimental analysis of cache coherence mechanisms in Xilinx Zynq UltraScale+ M
 
 **Course:** Real Time Systems And Industrial Applications  
 **Institution:** Università degli Studi di Napoli Federico II  
-**Platform:** Xilinx Kria KR260 Starter Kit  
+**Platform:** Xilinx Kria KR260
 **Academic Year:** 2024/2025
 
 ---
@@ -27,52 +27,63 @@ This project investigates cache coherence in heterogeneous multiprocessor system
 
 ---
 
-## 🗂️ Repository Structure
+## 🗂️ Repository Structure (Corrected)
 
 ```
 RealTimeSystemsAndIndustrialApplications/
 │
-├── README.md                    # This file
-├── LICENSE                      # MIT License
+├── README.md                     # Project overview and documentation
+├── LICENSE                       # MIT License
+├── .gitignore                    # Git ignore rules
 │
-├── firmware/                    # Embedded firmware for MPSoC cores
+├── firmware/                     # Embedded firmware for MPSoC cores
 │   ├── apu/
-│   │   └── apu_bare_metal.c    # Bare-metal APU coherence test
+│   │   ├── apu_bare_metal.c      # Bare-metal APU coherence test
+│   │
 │   ├── rpu/
-│   │   ├── coherence_test/     # Basic coherence verification
-│   │   ├── coherence_mod_test/ # Modified coherence test with monitoring
-│   │   └── performance_test/   # Performance measurement firmware
-│   │       └── rpu_perf_test.c # RPU cache invalidation overhead measurement
+│   │   ├── coherence_test/       # Basic coherence verification
+│   │   │   ├── lscript.ld
+│   │   │   └── rpu_coherency_test.c
+│   │   │
+│   │   ├── coherence_test_mod/   # Modified coherence test with monitoring
+│   │   │   ├── lscript.ld
+│   │   │   └── rpu_coherency_test_mod.c
+│   │   │
+│   │   └── performance_test/     # Performance measurement firmware
+│   │       └── rpu_perf_test.c   # Cache invalidation overhead measurement
+│   │
 │   └── fsbl/
-│       └── xfsbl_hooks.c       # FSBL modifications for CCI-400 (experimental)
+│       ├── xfsbl_hooks.c         # FSBL modifications (experimental)
+│       └── README.md             # Explanation of FSBL approach
 │
-├── linux/                       # Linux userspace and kernel components
+├── linux/                        # Linux userspace + kernel components
 │   ├── applications/
-│   │   ├── apu_perf_test.c     # APU performance test application
-│   │   ├── apu_coherency_test.c # Simple coherence verification
-│   │   └── Makefile            # Build configuration
+│   │   ├── apu_perf_test.c       # APU performance test application
+│   │   ├── apu_coherency_test.c  # Simple coherence verification
+│   │   └── Makefile              # Cross-compilation rules
+│   │
 │   ├── device-tree/
-│   │   ├── system_current.dts  # Complete device tree (extracted from board)
-│   │   └── system-user.dtsi    # User modifications for shared memory
+│   │   └── system_current.dts    # Device tree extracted from board
+│   │
 │   └── kernel-modules/
-│       ├── coherency_stress.c  # Kernel-space stress test module
-│       └── Makefile            # Kernel module build
+│       ├── coherency_stress.c    # Kernel-space stress test module
+│       └── Makefile              # Kernel module build configuration
 │
-├── analysis/                    # Data analysis and visualization
-│   ├── analyze_performance.py  # Python script for data analysis
-│   └── requirements.txt        # Python dependencies
+├── analysis/                     # Data analysis and visualization
+│   ├── analyze_performance.py    # Python script for statistical analysis
+│   └── requirements.txt          # NumPy, Matplotlib, Pandas, etc.
 │
-├── docs/                        # Documentation
-│   └── guida_setup_kr260.md    # Hardware setup guide
+├── docs/                         # Documentation
+│   └── kr260_setup_guide.md      # Hardware setup and configuration guide
 │
-├── results/                     # Experimental results
-│   └── results.csv             # Real performance measurements (1401 samples)
+├── results/
+│   └── results.csv               # Real performance measurements (1401 samples)
 │
-└── scripts/                     # Automation scripts
-    ├── setup_experiment.sh     # Experiment environment setup
-    ├── build_rpu.sh            # RPU firmware build script
-    ├── deploy.sh               # Deploy to target board
-    └── run_tests.sh            # Execute performance tests
+└── scripts/                      # Automation scripts
+    ├── setup_experiment.sh       # Target environment setup
+    ├── build_rpu.sh              # Build RPU firmware
+    ├── deploy.sh                 # Deploy binaries to the KR260
+    ├── run_tests.sh              # Execute the performance test suite
 ```
 
 ---
@@ -142,13 +153,13 @@ ssh root@$BOARD_IP
 echo rpu_perf_test.elf > /sys/class/remoteproc/remoteproc0/firmware
 echo start > /sys/class/remoteproc/remoteproc0/state
 
-# Wait 2 seconds for RPU initialization
+# Wait a couple seconds for RPU initialization
 sleep 2
 
 # Run APU test (generates results.csv)
 ./apu_perf_test 100 performance_results.csv
 
-# Results will be saved to performance_results.csv
+# Results saved to performance_results.csv
 ```
 
 ### 5. Analyze Results
@@ -174,7 +185,7 @@ python3 analyze_performance.py ../results/performance_results.csv output/
 
 ### Test Scenarios
 
-The project implements multiple test approaches to isolate different aspects of cache coherence:
+We implemented multiple test approaches to isolate different aspects of cache coherence:
 
 #### 1. **Performance Measurement Test** (Primary)
 - **Location:** `firmware/rpu/performance_test/` + `linux/applications/apu_perf_test.c`
@@ -210,7 +221,7 @@ The project implements multiple test approaches to isolate different aspects of 
 - **Timer:** TTC0 (Triple Timer Counter 0) at 0xFF110000
 - **Frequency:** 100 MHz
 - **Resolution:** 10 nanoseconds per tick
-- **Format:** 32-bit counter (sufficient for sub-second measurements)
+- **Format:** 32-bit counter (good enough for sub-second measurements)
 
 **Shared Memory:**
 - **Base Address:** 0x3E000000 (physical)
@@ -225,7 +236,7 @@ The project implements multiple test approaches to isolate different aspects of 
 Xil_DCacheInvalidateRange((INTPTR)shared_mem, 256);      // Invalidate metadata
 packet_size = shared_mem[1];                             // Read size
 Xil_DCacheInvalidateRange((INTPTR)&shared_mem[4], size); // Invalidate payload
-__asm__ __volatile__("dsb sy" ::: "memory");             // Ensure completion
+__asm__ __volatile__("dsb sy" ::: "memory");             // Make sure it completes
 rpu_ts = read_timer();  // ← TIMESTAMP HERE (after invalidation, before data read)
 ```
 
@@ -261,7 +272,7 @@ Assuming functional hardware coherence:
 
 **Model Parameters:**
 - CCI-400 frequency: 533 MHz (estimated from PS clock tree)
-- Snoop latency: ~30 cycles (documented ARM CCI-400 spec)
+- Snoop latency: ~30 cycles (from ARM CCI-400 spec)
 - Cache-to-cache transfer: ~40 cycles for 64B line
 - No software overhead for explicit cache ops
 
@@ -274,7 +285,7 @@ Assuming functional hardware coherence:
 **Current State:** NOT OPERATIONAL
 
 **Root Cause Analysis:**
-1. **PMUFW Limitations:** Standard Xilinx Platform Management Unit Firmware (PMUFW) does not initialize CCI-400 clocks and ports for RPU
+1. **PMUFW Limitations:** Standard Xilinx Platform Management Unit Firmware (PMUFW) doesn't initialize CCI-400 clocks and ports for RPU
 2. **Missing Prerequisites:**
    - CCI-400 clock gating must be disabled
    - ACE (AXI Coherency Extensions) ports must be configured for Cortex-R5F
@@ -283,9 +294,9 @@ Assuming functional hardware coherence:
 
 **Attempted Solutions:**
 - Modified FSBL hooks (`firmware/fsbl/xfsbl_hooks.c`) to write CCI-400 registers
-- Result: Insufficient, requires PMUFW rebuild with Xilinx EDK (not accessible in standard flow)
+- Result: Not enough, requires PMUFW rebuild with Xilinx EDK (not accessible in standard flow)
 
-**Conclusion:** Hardware coherence would provide significant benefits (30-50% for our workload), but requires custom PMUFW or Xilinx support for enabling CCI-400 for heterogeneous cores.
+**Conclusion:** Hardware coherence would give significant benefits (30-50% for our workload), but needs custom PMUFW or Xilinx support for enabling CCI-400 for heterogeneous cores.
 
 ### Device Tree Configuration
 
@@ -302,13 +313,13 @@ reserved-memory {
     rpu_shmem@70000000 {
         compatible = "shared-dma-pool";
         reg = <0x0 0x70000000 0x0 0x1000000>; // 16MB DMA pool
-        dma-coherent;  // Explicit coherence flag (not functional)
+        dma-coherent;  // Coherence flag (not functional)
     };
 };
 
 &rf5ss {
     compatible = "xlnx,zynqmp-r5-remoteproc";
-    dma-coherent;  // Inherited by R5F cores (not functional without PMUFW)
+    dma-coherent;  // Inherited by R5F cores (doesn't work without PMUFW)
     r5f_0 {
         compatible = "xilinx,r5f";
         power-domain = <&zynqmp_firmware 7>;
@@ -316,7 +327,7 @@ reserved-memory {
 };
 ```
 
-**Note:** Our tests use 0x3E000000 (not explicitly in DT) as it's free LPDDR4 space. For production, use official reserved regions.
+**Note:** Our tests use 0x3E000000 (not explicitly in DT) since it's free LPDDR4 space. For production, use official reserved regions.
 
 ---
 
@@ -333,7 +344,7 @@ dmesg | grep remoteproc
 
 # Common issues:
 # - Firmware not in /lib/firmware/
-# - Incorrect firmware name
+# - Wrong firmware name
 # - Previous RPU instance still running (echo stop > state first)
 ```
 
@@ -347,13 +358,13 @@ cat /sys/kernel/debug/remoteproc/remoteproc0/trace0
 devmem 0x3E000000
 
 # Check timer is running (on board)
-devmem 0xFF110018  # Should increment
+devmem 0xFF110018  # Should be incrementing
 ```
 
 ### Python Analysis Errors
 
 ```bash
-# Ensure dependencies installed
+# Make sure dependencies are installed
 pip install -r analysis/requirements.txt
 
 # Check CSV format
@@ -384,16 +395,6 @@ python3 --version  # Needs 3.8+
 
 This project is released under the MIT License. See [LICENSE](LICENSE) file for details.
 
-**Academic Use:** This project was developed as part of academic coursework. If you use or reference this work, please cite:
-
-```
-Caucci, L., & Cecere, S. (2024). 
-Analysis of Cache Coherence in Zynq UltraScale+ MPSoC: 
-CCI-400 Hardware Coherence Investigation. 
-Real Time Systems And Industrial Applications, 
-Università degli Studi di Napoli Federico II.
-```
-
 ---
 
 ## 🤝 Contributing
@@ -404,27 +405,18 @@ This is an academic project with completed experimental phase. However, we welco
 - Extensions for other Zynq platforms
 - Alternative measurement methodologies
 
-Please open an issue or pull request on GitHub.
+Feel free to open an issue or pull request on GitHub.
 
 ---
 
 ## ✉️ Contact
 
-For questions about this project, please contact:
+For questions about this project, reach out to:
 
-- Luigi Caucci: luigi.caucci@studenti.unina.it
-- Simone Cecere: simone.cecere@studenti.unina.it
-
-**Supervisor:** [Add if applicable]
+- Luigi Caucci: l.caucci@studenti.unina.it
+- Simone Cecere: simo.cecere@studenti.unina.it
 
 ---
 
-## 🙏 Acknowledgments
-
-- Xilinx University Program for hardware access
-- ARM for comprehensive technical documentation
-- Open-source community for tools and libraries (PetaLinux, Vitis, Python ecosystem)
-
----
-
-**Last Updated:** November 2024
+**Last Updated:** November 2025
+```

@@ -1,28 +1,28 @@
 #!/bin/bash
 #
-# Build RPU Firmware with Vitis
+# RPU firmware build script using Vitis
 #
-# This script automates the compilation of RPU firmware for Zynq UltraScale+ MPSoC.
-# It requires Vitis 2022.2 to be installed and properly configured.
+# Compiles RPU firmware for Zynq UltraScale+ MPSoC.
+# Needs Vitis 2022.2 installed and set up properly.
 #
 # Usage: ./build_rpu.sh [firmware_name]
 #   firmware_name: Optional, defaults to "rpu_perf_test"
 #                  Options: rpu_perf_test, rpu_coherency_test, rpu_coherency_test_mod
 #
 
-set -e  # Exit on error
+set -e  # Bail if anything fails
 
-# Configuration
+# Config - adjust these if your Vitis is installed elsewhere
 VITIS_VERSION="2022.2"
 VITIS_INSTALL_DIR="/tools/Xilinx/Vitis/${VITIS_VERSION}"
 WORKSPACE_DIR="$(pwd)/../vitis_workspace"
 PLATFORM_NAME="kr260"
 DOMAIN_NAME="standalone_r5_0"
 
-# Firmware selection
+# Which firmware to build
 FIRMWARE_NAME="${1:-rpu_perf_test}"
 
-# Source directories
+# Map firmware name to source directory
 case "$FIRMWARE_NAME" in
     "rpu_perf_test")
         SOURCE_DIR="$(pwd)/../firmware/rpu/performance_test"
@@ -52,7 +52,7 @@ echo "Vitis:     $VITIS_VERSION"
 echo "========================================="
 echo ""
 
-# Check Vitis installation
+# Make sure Vitis is actually installed
 if [ ! -d "$VITIS_INSTALL_DIR" ]; then
     echo "ERROR: Vitis not found at $VITIS_INSTALL_DIR"
     echo ""
@@ -61,11 +61,11 @@ if [ ! -d "$VITIS_INSTALL_DIR" ]; then
     exit 1
 fi
 
-# Source Vitis settings
+# Load Vitis environment variables
 echo "Sourcing Vitis environment..."
 source "${VITIS_INSTALL_DIR}/settings64.sh"
 
-# Check if source file exists
+# Check source file exists
 if [ ! -f "${SOURCE_DIR}/${SOURCE_FILE}" ]; then
     echo "ERROR: Source file not found: ${SOURCE_DIR}/${SOURCE_FILE}"
     exit 1
@@ -74,17 +74,18 @@ fi
 echo "Source file found: ${SOURCE_FILE}"
 echo ""
 
-# Instructions for building with Vitis IDE
+# Instructions for manual build in Vitis IDE
+# (automated CLI build is a pain and doesn't always work)
 echo "========================================="
 echo "Vitis IDE Build Instructions"
 echo "========================================="
 echo ""
-echo "Automatic build via Vitis CLI is complex. Follow these steps in Vitis IDE:"
+echo "Automatic CLI build is tricky. Here's how to do it in the IDE:"
 echo ""
 echo "1. Launch Vitis:"
 echo "   $ vitis -workspace ${WORKSPACE_DIR}"
 echo ""
-echo "2. Create Platform (if not exists):"
+echo "2. Create Platform (if you haven't already):"
 echo "   - File → New → Platform Project"
 echo "   - Name: ${PLATFORM_NAME}"
 echo "   - Hardware: Browse to your .xsa file from Vivado"
@@ -115,7 +116,7 @@ echo "6. Build Project:"
 echo "   - Project → Build Project"
 echo "   - Or right-click ${FIRMWARE_NAME} → Build Project"
 echo ""
-echo "7. Output ELF:"
+echo "7. Output ELF will be at:"
 echo "   ${WORKSPACE_DIR}/${FIRMWARE_NAME}/Debug/${FIRMWARE_NAME}.elf"
 echo ""
 echo "8. Copy to firmware directory:"
@@ -125,28 +126,28 @@ echo ""
 echo "========================================="
 echo ""
 
-# Alternative: Try Vitis CLI (if configured)
+# Ask if we should try the CLI build anyway
 read -p "Attempt automatic build with Vitis CLI? (y/n) " -n 1 -r
 echo ""
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo "Attempting Vitis CLI build (experimental)..."
     echo "NOTE: This requires pre-configured workspace and platform"
     
-    # Vitis CLI build command
+    # Try using xsct (Xilinx Software Command Tool)
     xsct << EOF
-# Set workspace
+# Point to workspace
 setws ${WORKSPACE_DIR}
 
-# Create/Open Application
+# Create or open the application
 app create -name ${FIRMWARE_NAME} -platform ${PLATFORM_NAME} -domain ${DOMAIN_NAME}
 
-# Import source
+# Import source files
 importsources -name ${FIRMWARE_NAME} -path ${SOURCE_DIR}
 
-# Build
+# Build the application
 app build -name ${FIRMWARE_NAME}
 
-# Exit
+# Done
 exit
 EOF
 

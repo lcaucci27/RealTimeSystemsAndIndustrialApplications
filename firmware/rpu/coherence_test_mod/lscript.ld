@@ -10,9 +10,11 @@
 /*                                                                 */
 /*******************************************************************/
 
+/* Stack and heap sizes - can be overridden at link time if needed */
 _STACK_SIZE = DEFINED(_STACK_SIZE) ? _STACK_SIZE : 0x2000;
 _HEAP_SIZE = DEFINED(_HEAP_SIZE) ? _HEAP_SIZE : 0x2000;
 
+/* ARM processor mode-specific stack sizes for exception handling */
 _ABORT_STACK_SIZE = DEFINED(_ABORT_STACK_SIZE) ? _ABORT_STACK_SIZE : 1024;
 _SUPERVISOR_STACK_SIZE = DEFINED(_SUPERVISOR_STACK_SIZE) ? _SUPERVISOR_STACK_SIZE : 2048;
 _IRQ_STACK_SIZE = DEFINED(_IRQ_STACK_SIZE) ? _IRQ_STACK_SIZE : 1024;
@@ -23,11 +25,11 @@ _UNDEF_STACK_SIZE = DEFINED(_UNDEF_STACK_SIZE) ? _UNDEF_STACK_SIZE : 1024;
 
 MEMORY
 {
-   psu_ocm_ram_0_MEM_0 : ORIGIN = 0xFFFC0000, LENGTH = 0x40000
-   psu_qspi_linear_0_MEM_0 : ORIGIN = 0xC0000000, LENGTH = 0x20000000
-   psu_r5_0_atcm_MEM_0 : ORIGIN = 0x0, LENGTH = 0x10000        /* 64KB TCM A */
-   psu_r5_0_btcm_MEM_0 : ORIGIN = 0x20000, LENGTH = 0x10000    /* 64KB TCM B */
-   psu_ddr_0_MEM_0 : ORIGIN = 0x70000000, LENGTH = 0x1000000   /* DDR per shared data */
+   psu_ocm_ram_0_MEM_0 : ORIGIN = 0xFFFC0000, LENGTH = 0x40000       /* 256KB OCM - on-chip memory */
+   psu_qspi_linear_0_MEM_0 : ORIGIN = 0xC0000000, LENGTH = 0x20000000 /* QSPI flash linear mapping */
+   psu_r5_0_atcm_MEM_0 : ORIGIN = 0x0, LENGTH = 0x10000              /* 64KB TCM A - fast tightly-coupled memory at address 0 */
+   psu_r5_0_btcm_MEM_0 : ORIGIN = 0x20000, LENGTH = 0x10000          /* 64KB TCM B - separate TCM starting at 128KB offset */
+   psu_ddr_0_MEM_0 : ORIGIN = 0x70000000, LENGTH = 0x1000000         /* 16MB DDR region for shared data with APU - this is where our experiments happen */
 }
 
 /* Specify the default entry point to the program */
@@ -38,15 +40,18 @@ ENTRY(_boot)
 
 SECTIONS
 {
+/* Exception vectors and boot code - must be at address 0 in TCM A for ARM to find them */
 .vectors : {
    KEEP (*(.vectors))
    *(.boot)
 } > psu_r5_0_atcm_MEM_0
 
+/* Early boot data that needs to be accessible right away */
 .bootdata : {
    *(.bootdata)
 } > psu_r5_0_atcm_MEM_0
 
+/* Executable code section - aligned to 2KB for performance, stays in fast TCM A */
 .text : {
    . = ALIGN(2048);
    *(.text)
@@ -62,10 +67,12 @@ SECTIONS
    *(.gnu.linkonce.armextab.*)
 } > psu_r5_0_atcm_MEM_0
 
+/* C++ constructor initialization - runs before main() */
 .init : {
    KEEP (*(.init))
 } > psu_r5_0_btcm_MEM_0
 
+/* C++ destructor finalization - runs after main() */
 .fini : {
    KEEP (*(.fini))
 } > psu_r5_0_btcm_MEM_0
@@ -82,6 +89,7 @@ SECTIONS
    KEEP (*(.note.gnu.build-id))
 } > psu_r5_0_btcm_MEM_0
 
+/* Read-only data (const variables, string literals) - goes to TCM B */
 .rodata : {
    __rodata_start = .;
    *(.rodata)
@@ -97,6 +105,7 @@ SECTIONS
    __rodata1_end = .;
 } > psu_r5_0_btcm_MEM_0
 
+/* Small data section 2 - for PowerPC/MIPS-style small data area (not really used on ARM) */
 .sdata2 : {
    __sdata2_start = .;
    *(.sdata2)
@@ -105,6 +114,7 @@ SECTIONS
    __sdata2_end = .;
 } > psu_r5_0_btcm_MEM_0
 
+/* Small BSS section 2 - uninitialized small data */
 .sbss2 : {
    __sbss2_start = .;
    *(.sbss2)
@@ -113,6 +123,7 @@ SECTIONS
    __sbss2_end = .;
 } > psu_r5_0_btcm_MEM_0
 
+/* Initialized data section - copied from flash/ROM to RAM at startup */
 .data : {
    __data_start = .;
    *(.data)
@@ -131,10 +142,12 @@ SECTIONS
    __data1_end = .;
 } > psu_r5_0_btcm_MEM_0
 
+/* Global Offset Table - for position-independent code */
 .got : {
    *(.got)
 } > psu_r5_0_btcm_MEM_0
 
+/* C++ static constructor list - called during startup */
 .ctors : {
    __CTOR_LIST__ = .;
    ___CTORS_LIST___ = .;
@@ -146,6 +159,7 @@ SECTIONS
    ___CTORS_END___ = .;
 } > psu_r5_0_btcm_MEM_0
 
+/* C++ static destructor list - called during shutdown */
 .dtors : {
    __DTOR_LIST__ = .;
    ___DTORS_LIST___ = .;
@@ -163,6 +177,7 @@ SECTIONS
    __fixup_end = .;
 } > psu_r5_0_btcm_MEM_0
 
+/* Exception handling frame information - for stack unwinding during exceptions */
 .eh_frame : {
    *(.eh_frame)
 } > psu_r5_0_btcm_MEM_0
@@ -177,12 +192,14 @@ SECTIONS
    *(.gcc_except_table)
 } > psu_r5_0_btcm_MEM_0
 
+/* MMU translation table - aligned to 16KB boundary as required by ARM MMU */
 .mmu_tbl (ALIGN(16384)) : {
    __mmu_tbl_start = .;
    *(.mmu_tbl)
    __mmu_tbl_end = .;
 } > psu_r5_0_btcm_MEM_0
 
+/* ARM exception index table - used for C++ exception handling */
 .ARM.exidx : {
    __exidx_start = .;
    *(.ARM.exidx*)
@@ -190,6 +207,7 @@ SECTIONS
    __exidx_end = .;
 } > psu_r5_0_btcm_MEM_0
 
+/* Pre-initialization array - runs before static constructors */
 .preinit_array : {
    __preinit_array_start = .;
    KEEP (*(SORT(.preinit_array.*)))
@@ -197,6 +215,7 @@ SECTIONS
    __preinit_array_end = .;
 } > psu_r5_0_btcm_MEM_0
 
+/* Initialization array - static constructors for C++ */
 .init_array : {
    __init_array_start = .;
    KEEP (*(SORT(.init_array.*)))
@@ -204,6 +223,7 @@ SECTIONS
    __init_array_end = .;
 } > psu_r5_0_btcm_MEM_0
 
+/* Finalization array - static destructors for C++ */
 .fini_array : {
    __fini_array_start = .;
    KEEP (*(SORT(.fini_array.*)))
@@ -211,12 +231,14 @@ SECTIONS
    __fini_array_end = .;
 } > psu_r5_0_btcm_MEM_0
 
+/* ARM-specific attributes section */
 .ARM.attributes : {
    __ARM.attributes_start = .;
    *(.ARM.attributes)
    __ARM.attributes_end = .;
 } > psu_r5_0_btcm_MEM_0
 
+/* Small data section - for compiler-optimized small data access */
 .sdata : {
    __sdata_start = .;
    *(.sdata)
@@ -225,6 +247,7 @@ SECTIONS
    __sdata_end = .;
 } > psu_r5_0_btcm_MEM_0
 
+/* Small BSS - uninitialized small data, marked NOLOAD so it's zero-initialized at runtime */
 .sbss (NOLOAD) : {
    __sbss_start = .;
    *(.sbss)
@@ -233,6 +256,7 @@ SECTIONS
    __sbss_end = .;
 } > psu_r5_0_btcm_MEM_0
 
+/* Thread-local storage data - for multi-threaded applications */
 .tdata : {
    __tdata_start = .;
    *(.tdata)
@@ -241,6 +265,7 @@ SECTIONS
    __tdata_end = .;
 } > psu_r5_0_btcm_MEM_0
 
+/* Thread-local storage BSS - uninitialized thread-local data */
 .tbss : {
    __tbss_start = .;
    *(.tbss)
@@ -249,6 +274,7 @@ SECTIONS
    __tbss_end = .;
 } > psu_r5_0_btcm_MEM_0
 
+/* Uninitialized data section - zeroed by startup code before main() */
 .bss (NOLOAD) : {
    . = ALIGN(4);
    __bss_start__ = .;
@@ -260,12 +286,14 @@ SECTIONS
    __bss_end__ = .;
 } > psu_r5_0_btcm_MEM_0
 
+/* Small data base pointers - used by compiler for optimized small data access */
 _SDA_BASE_ = __sdata_start + ((__sbss_end - __sdata_start) / 2 );
 
 _SDA2_BASE_ = __sdata2_start + ((__sbss2_end - __sdata2_start) / 2 );
 
 /* Generate Stack and Heap definitions */
 
+/* Heap for dynamic memory allocation (malloc/free) */
 .heap (NOLOAD) : {
    . = ALIGN(16);
    _heap = .;
@@ -276,6 +304,8 @@ _SDA2_BASE_ = __sdata2_start + ((__sbss2_end - __sdata2_start) / 2 );
    HeapLimit = .;
 } > psu_r5_0_btcm_MEM_0
 
+/* Stack section - ARM uses multiple stacks for different processor modes
+   Stacks grow downward, so _end markers are at low addresses */
 .stack (NOLOAD) : {
    . = ALIGN(16);
    _stack_end = .;
@@ -304,6 +334,6 @@ _SDA2_BASE_ = __sdata2_start + ((__sbss2_end - __sdata2_start) / 2 );
    __undef_stack = .;
 } > psu_r5_0_btcm_MEM_0
 
+/* End of all sections - used by startup code to know where program memory ends */
 _end = .;
 }
-

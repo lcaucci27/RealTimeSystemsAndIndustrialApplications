@@ -1,36 +1,36 @@
-// RPU Coherence Test - TODO
+// RPU Coherence Test - Basic version to check if APU-RPU communication works
 #include <stdio.h>
 #include "xil_cache.h"
 
-#define SHARED_MEM_BASE 0x3e000000  // Base address for the shared memory region
-#define MAGIC_VALUE 0xCAFEBABE      // Value we're expecting from the APU
+#define SHARED_MEM_BASE 0x3e000000  // Where we set up shared memory in the device tree
+#define MAGIC_VALUE 0xCAFEBABE      // What we're expecting APU to write
 
-// Pointer to shared memory - volatile so the compiler doesn't optimize reads/writes
+// Volatile so compiler doesn't mess with our reads/writes
 volatile uint32_t *shared_mem = (uint32_t*)SHARED_MEM_BASE;
 
 int main() {
     printf("RPU: Starting coherence test\n");
     
-    // Enable the data cache if needed
+    // Turn on data cache if it's not already
     Xil_DCacheEnable();
     
-    // Main loop: wait for data coming from the APU
+    // Just keep polling for data from APU
     while(1) {
-        // Read the value from shared memory
+        // Grab whatever's at the shared memory location
         uint32_t value = *shared_mem;
         
-        // Check if we got the magic value we were waiting for
+        // Did we get what we were waiting for?
         if(value == MAGIC_VALUE) {
             printf("RPU: Received correct value!\n");
             
-            // Write our response back to the APU
+            // Write our response back
             shared_mem[1] = 0xDEADBEEF;
             
-            // Reset the first location so we can do another test
+            // Clear the first slot so we can loop again
             *shared_mem = 0;
         }
         
-        // Add a small delay to avoid hammering the memory bus
+        // Small delay so we don't absolutely hammer the bus
         for(volatile int i=0; i<100000; i++);
     }
     

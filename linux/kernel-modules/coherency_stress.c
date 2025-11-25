@@ -1,9 +1,8 @@
 /*
  * coherency_test.c - Cache Coherency Test Module for Zynq UltraScale+ MPSoC
  * 
- * This module sets up some cacheable memory with Outer Shareable attributes
- * so we can test if hardware cache coherency actually works between the APU
- * and RPU through the CCI-400 interconnect.
+ * Sets up some cacheable memory with Outer Shareable attributes to test
+ * if hardware cache coherency actually works between APU and RPU through CCI-400.
  */
 
 #include <linux/module.h>
@@ -25,17 +24,17 @@ static void *virt_addr = NULL;
 static phys_addr_t phys_addr;
 static volatile uint32_t *test_buffer;
 
-// Proc file so we can expose the physical address to userspace
+// Proc file to expose physical address to userspace
 static struct proc_dir_entry *proc_entry;
 
 /*
- * Pattern definitions for testing
+ * Test patterns
  */
-#define PATTERN_OLD 0x0F0F0F0F  // The "old" value we'll write to DDR
-#define PATTERN_NEW 0xF0F0F0F0  // The "new" value we'll keep in cache
+#define PATTERN_OLD 0x0F0F0F0F  // "Old" value sitting in DDR
+#define PATTERN_NEW 0xF0F0F0F0  // "New" value we keep in cache only
 
 /*
- * Proc file read handler - displays physical address and current buffer data
+ * Proc file read handler - shows physical address and current buffer state
  */
 static int coherency_proc_show(struct seq_file *m, void *v)
 {
@@ -78,7 +77,7 @@ static const struct proc_ops coherency_proc_fops = {
 };
 
 /*
- * Module initialization
+ * Module init
  */
 static int __init coherency_init(void)
 {
@@ -89,14 +88,14 @@ static int __init coherency_init(void)
     pr_info("%s: Initializing Cache Coherency Test\n", MODULE_NAME);
     pr_info("===========================================\n");
     
-    // Allocate one page of normal cacheable memory
+    // Grab one page of normal cacheable memory
     virt_addr = (void *)__get_free_page(GFP_KERNEL);
     if (!virt_addr) {
         pr_err("%s: Failed to allocate test page\n", MODULE_NAME);
         return -ENOMEM;
     }
     
-    // Get the physical address so we can give it to the RPU
+    // Get physical address to pass to RPU
     phys_addr = virt_to_phys(virt_addr);
     test_buffer = (volatile uint32_t *)virt_addr;
     
@@ -105,11 +104,11 @@ static int __init coherency_init(void)
     pr_info("%s:   Physical address: 0x%llx\n", MODULE_NAME, (u64)phys_addr);
     pr_info("%s:   Size: %lu bytes\n", MODULE_NAME, TEST_SIZE);
     
-    // Just checking what memory attributes we have (mostly for info)
+    // Check memory attributes (mostly just for info)
     prot = PAGE_KERNEL; /* Normal memory, cacheable, shareable */
     pr_info("%s: Memory attributes: Normal, Cacheable, Outer Shareable\n", MODULE_NAME);
     
-    // Phase 1: Write the OLD pattern and make sure it gets to DDR
+    // Phase 1: Write OLD pattern and flush it to DDR
     pr_info("%s: Phase 1 - Writing OLD pattern (0x%08x) with flush\n", 
             MODULE_NAME, PATTERN_OLD);
     
@@ -117,7 +116,7 @@ static int __init coherency_init(void)
         test_buffer[i] = PATTERN_OLD;
     }
     
-    // Force everything out to DDR with explicit cache clean operations
+    // Force cache clean to push everything to DDR
     for (i = 0; i < NUM_TEST_WORDS; i++) {
         __asm__ __volatile__ ("dc cvac, %0" :: "r" (&test_buffer[i]) : "memory");
     }
@@ -125,11 +124,11 @@ static int __init coherency_init(void)
     
     pr_info("%s: OLD pattern flushed to DDR\n", MODULE_NAME);
     
-    // Give it a moment to make sure everything's settled
+    // Let things settle
     msleep(100);
     
-    // Phase 2: Now write the NEW pattern but DON'T flush it
-    // This way it only lives in the APU's cache
+    // Phase 2: Write NEW pattern WITHOUT flushing
+    // This keeps it only in APU cache
     pr_info("%s: Phase 2 - Writing NEW pattern (0x%08x) WITHOUT flush\n",
             MODULE_NAME, PATTERN_NEW);
     
@@ -137,7 +136,7 @@ static int __init coherency_init(void)
         test_buffer[i] = PATTERN_NEW;
     }
     
-    // Just a compiler barrier, no actual cache operations
+    // Just a compiler barrier, no cache ops
     __asm__ __volatile__ ("" ::: "memory");
     
     pr_info("%s:\n", MODULE_NAME);
@@ -152,7 +151,7 @@ static int __init coherency_init(void)
             MODULE_NAME, PATTERN_OLD);
     pr_info("%s:\n", MODULE_NAME);
     
-    // Create the proc file so userspace can read test info
+    // Create proc file so userspace can read info
     proc_entry = proc_create(MODULE_NAME, 0444, NULL, &coherency_proc_fops);
     if (!proc_entry) {
         pr_err("%s: Failed to create /proc/%s\n", MODULE_NAME, MODULE_NAME);
@@ -184,7 +183,7 @@ static void __exit coherency_exit(void)
     }
     
     if (virt_addr) {
-        // Print out what's in the buffer before we free it
+        // Show final buffer contents before freeing
         pr_info("%s: Final buffer contents:\n", MODULE_NAME);
         for (i = 0; i < NUM_TEST_WORDS; i++) {
             pr_info("%s:   [%d] = 0x%08x\n", MODULE_NAME, i, test_buffer[i]);
@@ -202,6 +201,5 @@ module_init(coherency_init);
 module_exit(coherency_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Simone");
 MODULE_DESCRIPTION("CCI-400 Cache Coherency Test Module for Zynq UltraScale+ MPSoC");
 MODULE_VERSION("1.0");

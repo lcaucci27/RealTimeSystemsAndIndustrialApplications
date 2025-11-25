@@ -1,7 +1,7 @@
 # Makefile for APU Applications
-# Cross-compilation for ARM64 (Cortex-A53)
+# Cross-compiles for ARM64 (Cortex-A53)
 
-# Toolchain
+# Toolchain setup
 CROSS_COMPILE ?= aarch64-linux-gnu-
 CC = $(CROSS_COMPILE)gcc
 STRIP = $(CROSS_COMPILE)strip
@@ -11,16 +11,16 @@ CFLAGS = -O2 -Wall -Wextra
 LDFLAGS = -static
 LIBS = -lrt
 
-# Targets
+# What we're building
 TARGETS = apu_perf_test apu_coherency_test
 
 # Source files
 SOURCES = $(TARGETS:=.c)
 
-# Default target
+# Build everything by default
 all: $(TARGETS)
 
-# Pattern rule for building executables
+# Generic rule for building executables
 %: %.c
 	@echo "Building $@..."
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBS)
@@ -28,7 +28,7 @@ all: $(TARGETS)
 	$(STRIP) $@
 	@echo "Done: $@"
 
-# Individual targets (explicit)
+# Explicit rules for each target
 apu_perf_test: apu_perf_test.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBS)
 	$(STRIP) $@
@@ -37,13 +37,13 @@ apu_coherency_test: apu_coherency_test.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LIBS)
 	$(STRIP) $@
 
-# Clean
+# Clean up build artifacts
 clean:
 	@echo "Cleaning..."
 	rm -f $(TARGETS) *.o
 	@echo "Clean done."
 
-# Install (copy to target board)
+# Copy to target board via SCP
 install: all
 	@echo "Installing to target..."
 	@if [ -z "$(BOARD_IP)" ]; then \
@@ -58,7 +58,7 @@ install: all
 	done
 	@echo "Installation complete!"
 
-# Help
+# Help message
 help:
 	@echo "Makefile for APU Applications"
 	@echo ""

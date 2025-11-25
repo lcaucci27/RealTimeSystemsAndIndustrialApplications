@@ -2,10 +2,10 @@
 
 obj-m += coherency_test.o
 
-# Kernel source directory (adjust path if needed)
+# Kernel source directory - change this if your kernel sources are elsewhere
 KERNEL_SRC ?= /lib/modules/$(shell uname -r)/build
 
-# Cross-compilation settings
+# Cross-compilation setup for ARM64
 ARCH ?= arm64
 CROSS_COMPILE ?= aarch64-linux-gnu-
 
