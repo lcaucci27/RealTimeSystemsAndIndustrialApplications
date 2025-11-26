@@ -417,6 +417,4 @@ For questions about this project, reach out to:
 - Simone Cecere: simo.cecere@studenti.unina.it
 
 ---
-
 **Last Updated:** November 2025
-```
