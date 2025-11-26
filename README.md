@@ -27,67 +27,6 @@ This project investigates cache coherence in heterogeneous multiprocessor system
 
 ---
 
-## 🗂️ Repository Structure (Corrected)
-
-```
-RealTimeSystemsAndIndustrialApplications/
-│
-├── README.md                     # Project overview and documentation
-├── LICENSE                       # MIT License
-├── .gitignore                    # Git ignore rules
-│
-├── firmware/                     # Embedded firmware for MPSoC cores
-│   ├── apu/
-│   │   ├── apu_bare_metal.c      # Bare-metal APU coherence test
-│   │
-│   ├── rpu/
-│   │   ├── coherence_test/       # Basic coherence verification
-│   │   │   ├── lscript.ld
-│   │   │   └── rpu_coherency_test.c
-│   │   │
-│   │   ├── coherence_test_mod/   # Modified coherence test with monitoring
-│   │   │   ├── lscript.ld
-│   │   │   └── rpu_coherency_test_mod.c
-│   │   │
-│   │   └── performance_test/     # Performance measurement firmware
-│   │       └── rpu_perf_test.c   # Cache invalidation overhead measurement
-│   │
-│   └── fsbl/
-│       ├── xfsbl_hooks.c         # FSBL modifications (experimental)
-│       └── README.md             # Explanation of FSBL approach
-│
-├── linux/                        # Linux userspace + kernel components
-│   ├── applications/
-│   │   ├── apu_perf_test.c       # APU performance test application
-│   │   ├── apu_coherency_test.c  # Simple coherence verification
-│   │   └── Makefile              # Cross-compilation rules
-│   │
-│   ├── device-tree/
-│   │   └── system_current.dts    # Device tree extracted from board
-│   │
-│   └── kernel-modules/
-│       ├── coherency_stress.c    # Kernel-space stress test module
-│       └── Makefile              # Kernel module build configuration
-│
-├── analysis/                     # Data analysis and visualization
-│   ├── analyze_performance.py    # Python script for statistical analysis
-│   └── requirements.txt          # NumPy, Matplotlib, Pandas, etc.
-│
-├── docs/                         # Documentation
-│   └── kr260_setup_guide.md      # Hardware setup and configuration guide
-│
-├── results/
-│   └── results.csv               # Real performance measurements (1401 samples)
-│
-└── scripts/                      # Automation scripts
-    ├── setup_experiment.sh       # Target environment setup
-    ├── build_rpu.sh              # Build RPU firmware
-    ├── deploy.sh                 # Deploy binaries to the KR260
-    ├── run_tests.sh              # Execute the performance test suite
-```
-
----
-
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -96,7 +35,7 @@ RealTimeSystemsAndIndustrialApplications/
 - Xilinx Kria KR260 Starter Kit (or equivalent Zynq UltraScale+ board)
 - SD card with PetaLinux 2022.2
 - USB-UART cable for debug console
-- Network connection (SSH access)
+- Network connection (Optional: for SSH access)
 
 **Software:**
 - Vitis 2022.2 (for RPU firmware compilation)
@@ -129,49 +68,52 @@ cd linux/applications
 make
 
 # Or manually:
-aarch64-linux-gnu-gcc -O2 -static -o apu_perf_test apu_perf_test.c
+aarch64-linux-gnu-gcc -O2 -o <OUTPUT> <SOURCE.c> -lrt
 ```
 
-### 3. Deploy to Board
+### 3.1. Deploy to Board (PuTTY)
+
+Connect your board through USB-JTAG
+
+Serial line: COMX
+Speed (baud): 115200
+Data bits: 8
+Stop bits: 1
+Parity: None
+Flow control: None
+
+### 3.2. Deploy to Board (SSH)
 
 ```bash
 # Set your board IP
 export BOARD_IP=192.168.1.100
-
-# Deploy firmware and applications
-cd scripts
-./deploy.sh
 ```
 
 ### 4. Run Performance Tests
 
 ```bash
-# On the board (via SSH)
-ssh root@$BOARD_IP
-
+# On the board (via PuTTY)
 # Load RPU firmware via Remoteproc
-echo rpu_perf_test.elf > /sys/class/remoteproc/remoteproc0/firmware
+echo <FIRMWARE.elf> > /sys/class/remoteproc/remoteproc0/firmware
 echo start > /sys/class/remoteproc/remoteproc0/state
 
 # Wait a couple seconds for RPU initialization
 sleep 2
 
 # Run APU test (generates results.csv)
-./apu_perf_test 100 performance_results.csv
+./apu_perf_test <REPETITIONS> <OUTPUT.csv>
 
-# Results saved to performance_results.csv
+# Results saved to csv
 ```
 
 ### 5. Analyze Results
 
 ```bash
-# Copy results from board to PC
-scp root@$BOARD_IP:~/performance_results.csv results/
+# Copy results from board to USB drive
+scp /home/root mnt/usb
 
 # Run analysis script
-cd analysis
-pip install -r requirements.txt
-python3 analyze_performance.py ../results/performance_results.csv output/
+python3 <ANALYSIS_SCRIPT.py> <OUTPUT.csv> output/
 
 # Generated files:
 # - output_comparison.png       : Main comparison plot
@@ -188,7 +130,7 @@ python3 analyze_performance.py ../results/performance_results.csv output/
 We implemented multiple test approaches to isolate different aspects of cache coherence:
 
 #### 1. **Performance Measurement Test** (Primary)
-- **Location:** `firmware/rpu/performance_test/` + `linux/applications/apu_perf_test.c`
+- **Location:** `firmware/rpu/performance_test/` + `linux/applications/apu_sender_ddr.c`
 - **Purpose:** Measure cache invalidation overhead in non-coherent scenario
 - **Method:** 
   - APU writes data to shared memory (uncached via O_SYNC)
@@ -242,42 +184,6 @@ rpu_ts = read_timer();  // ← TIMESTAMP HERE (after invalidation, before data r
 
 This captures ONLY the cache management overhead, not data transfer time.
 
----
-
-## 📈 Results Summary
-
-Based on 1401 real measurements on Kria KR260:
-
-### Measured Performance (Non-Coherent Baseline)
-
-| Packet Size | Mean Latency | Std Dev | Throughput |
-|-------------|--------------|---------|------------|
-| 1 B         | ~1.8 µs      | ±0.3 µs | N/A        |
-| 64 B        | ~2.0 µs      | ±0.4 µs | ~32 MB/s   |
-| 256 B       | ~2.5 µs      | ±0.5 µs | ~102 MB/s  |
-| 1 KB        | ~4.0 µs      | ±0.8 µs | ~250 MB/s  |
-| 64 KB       | ~50 µs       | ±10 µs  | ~1280 MB/s |
-
-**Key Observations:**
-- Baseline latency: ~1.5-2.0 µs (dominated by cache invalidation)
-- Linear scaling with packet size (cache line granularity)
-- Throughput limited by invalidation overhead for small packets
-
-### Theoretical CCI-400 Performance (Model)
-
-Assuming functional hardware coherence:
-- **Small packets (<128B):** 30-50% speedup (eliminate ~1 µs invalidation overhead)
-- **Large packets (>4KB):** 10-20% speedup (data transfer dominates)
-- **Mechanism:** Cache-to-cache transfer via CCI snoop, no manual invalidation
-
-**Model Parameters:**
-- CCI-400 frequency: 533 MHz (estimated from PS clock tree)
-- Snoop latency: ~30 cycles (from ARM CCI-400 spec)
-- Cache-to-cache transfer: ~40 cycles for 64B line
-- No software overhead for explicit cache ops
-
----
-
 ## 🔧 Technical Details
 
 ### CCI-400 Status
@@ -302,78 +208,7 @@ Assuming functional hardware coherence:
 
 Key device tree nodes (from `linux/device-tree/system_current.dts`):
 
-```dts
-reserved-memory {
-    rproc@3ed00000 {
-        reg = <0x0 0x3ed00000 0x0 0x40000>;  // 256KB for firmware
-    };
-    rpu0vdev0buffer@3ed48000 {
-        reg = <0x0 0x3ed48000 0x0 0x100000>; // 1MB VirtIO buffer
-    };
-    rpu_shmem@70000000 {
-        compatible = "shared-dma-pool";
-        reg = <0x0 0x70000000 0x0 0x1000000>; // 16MB DMA pool
-        dma-coherent;  // Coherence flag (not functional)
-    };
-};
-
-&rf5ss {
-    compatible = "xlnx,zynqmp-r5-remoteproc";
-    dma-coherent;  // Inherited by R5F cores (doesn't work without PMUFW)
-    r5f_0 {
-        compatible = "xilinx,r5f";
-        power-domain = <&zynqmp_firmware 7>;
-    };
-};
-```
-
 **Note:** Our tests use 0x3E000000 (not explicitly in DT) since it's free LPDDR4 space. For production, use official reserved regions.
-
----
-
-## 🛠️ Troubleshooting
-
-### RPU Not Starting
-
-```bash
-# Check Remoteproc status
-cat /sys/class/remoteproc/remoteproc0/state
-
-# Check logs
-dmesg | grep remoteproc
-
-# Common issues:
-# - Firmware not in /lib/firmware/
-# - Wrong firmware name
-# - Previous RPU instance still running (echo stop > state first)
-```
-
-### No Results Generated
-
-```bash
-# Check if RPU is receiving packets
-cat /sys/kernel/debug/remoteproc/remoteproc0/trace0
-
-# Verify shared memory accessible
-devmem 0x3E000000
-
-# Check timer is running (on board)
-devmem 0xFF110018  # Should be incrementing
-```
-
-### Python Analysis Errors
-
-```bash
-# Make sure dependencies are installed
-pip install -r analysis/requirements.txt
-
-# Check CSV format
-head results/results.csv
-# Should show: packet_size,apu_timestamp,rpu_timestamp,delta_ticks,delta_us
-
-# Verify Python version
-python3 --version  # Needs 3.8+
-```
 
 ---
 

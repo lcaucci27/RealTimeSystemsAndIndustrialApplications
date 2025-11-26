@@ -50,7 +50,7 @@ Interconnect:
 
 ## 💿 SD Card Preparation
 
-### Option 1: Pre-built Ubuntu Image (Recommended)
+### Option 1: Pre-built Ubuntu Image
 
 1. **Download Canonical Ubuntu for Kria**
    ```bash
@@ -74,7 +74,7 @@ Interconnect:
    - Boot (default username/password: ubuntu/ubuntu)
    - Complete initial setup
 
-### Option 2: Custom Build with PetaLinux
+### Option 2: Custom Build with PetaLinux (Recommended)
 
 For device tree or kernel modifications:
 
@@ -126,50 +126,9 @@ For device tree or kernel modifications:
 
 ---
 
-## 🔌 Hardware Connections
-
-### Physical Setup
-
-```
-┌─────────────────────────────────────┐
-│   PC/Laptop (Ubuntu)                │
-│                                     │
-│   USB ──────────────┐              │
-│   Ethernet ────────┐│              │
-└────────────────────┼┼──────────────┘
-                     ││
-                     ││ USB-micro (UART)
-                     ││ Ethernet
-                     ││
-              ┌──────▼▼──────────────┐
-              │  Kria KR260           │
-              │  ┌─────────────────┐  │
-              │  │ K26 SOM         │  │
-              │  │ (MPSoC)         │  │
-              │  └─────────────────┘  │
-              │                       │
-              │  microSD card ────>   │
-              │  12V Power ──────>    │
-              └───────────────────────┘
-```
-
 ### Serial Connection
 
-1. **Connect USB-micro cable**
-   - Port J4 on KR260
-   - 4× virtual serial ports appear on PC
-
-2. **Identify ports**
-   ```bash
-   ls -l /dev/ttyUSB*
-   # Typically:
-   # /dev/ttyUSB0 → JTAG UART (not used)
-   # /dev/ttyUSB1 → System Controller
-   # /dev/ttyUSB2 → Linux console (APU) ← THIS ONE
-   # /dev/ttyUSB3 → (not used)
-   ```
-
-3. **Open console**
+1. **Open console**
    ```bash
    # Using screen
    screen /dev/ttyUSB2 115200
@@ -329,64 +288,6 @@ dtc -I dtb -O dts /boot/system.dtb -o /tmp/system.dts
 # Check key sections
 grep -A 20 "reserved-memory" /tmp/system.dts
 grep -A 30 "rf5ss" /tmp/system.dts
-```
-
----
-
-## 🔧 Troubleshooting
-
-### Problem: Remoteproc not available
-
-```bash
-# Check kernel config
-zcat /proc/config.gz | grep REMOTEPROC
-# Should show:
-# CONFIG_REMOTEPROC=y
-# CONFIG_ZYNQMP_R5_REMOTEPROC=y
-
-# If not present, rebuild kernel with options enabled
-```
-
-### Problem: RPU won't start
-
-```bash
-# Check dmesg for errors
-dmesg | grep -i remoteproc | tail -20
-
-# Common errors:
-# - "Failed to load firmware" → .elf file not found or corrupted
-# - "Failed to parse firmware" → .elf not compatible (wrong arch/platform)
-# - "Failed to allocate memory" → reserved-memory not configured
-```
-
-### Problem: Shared memory not accessible
-
-```bash
-# Check /dev/mem permissions
-ls -l /dev/mem
-# Should be: crw------- root root
-
-# Test memory access (be careful!)
-sudo devmem 0x3E000000
-# Should return a value (even if random)
-
-# If fails: problem with device tree or MMU
-```
-
-### Problem: Network unreachable
-
-```bash
-# Check interface
-ip addr show eth0
-# Should show configured IP
-
-# Test physical link
-ethtool eth0
-# Link detected: yes
-
-# Firewall
-sudo ufw status
-# If active, might block SSH
 ```
 
 ---
