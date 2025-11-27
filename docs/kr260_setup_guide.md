@@ -15,9 +15,9 @@ This guide walks through setting up the Xilinx Kria KR260 Starter Kit to run the
 
 2. **Accessories**
    - microSD card (16GB or larger, class 10)
-   - Ethernet cable (for network connection)
-   - USB-A to micro-USB cable (serial console)
-   - PC/Laptop with Linux (Ubuntu 20.04+ recommended)
+   - Ethernet cable for network connection
+   - USB-A to micro-USB cable for serial console
+   - PC/Laptop with Linux—Ubuntu 20.04+ is recommended
 
 ### Relevant Hardware Specs
 
@@ -71,12 +71,12 @@ Interconnect:
 3. **Initial setup**
    - Insert SD into KR260 slot
    - Connect UART (115200 8N1)
-   - Boot (default username/password: ubuntu/ubuntu)
+   - Boot—default username/password is ubuntu/ubuntu
    - Complete initial setup
 
 ### Option 2: Custom Build with PetaLinux (Recommended)
 
-For device tree or kernel modifications:
+If you need device tree or kernel modifications, this is the way to go:
 
 1. **Setup PetaLinux 2022.2 environment**
    ```bash
@@ -125,6 +125,8 @@ For device tree or kernel modifications:
    ```
 
 ---
+
+## 🔌 Connecting to the Board
 
 ### Serial Connection
 
@@ -312,5 +314,5 @@ grep -A 30 "rf5ss" /tmp/system.dts
 
 ---
 
-**Last Updated:** November 2025 
+**Last Updated:** November 2025  
 **Tested on:** Kria KR260 (K26 SOM), Ubuntu 22.04, PetaLinux 2022.2

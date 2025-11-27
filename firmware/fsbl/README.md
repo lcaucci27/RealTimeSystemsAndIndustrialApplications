@@ -1,10 +1,10 @@
 # FSBL Modifications for CCI-400
 
-This directory contains experimental modifications to the First Stage Boot Loader (FSBL) to try and enable CCI-400 hardware cache coherence.
+This directory has our experimental modifications to the First Stage Boot Loader (FSBL) where we tried to enable CCI-400 hardware cache coherence.
 
 ## File: xfsbl_hooks.c
 
-This file provides hooks that run during FSBL initialization, letting us do custom hardware configuration before Linux boots.
+This file provides hooks that run during FSBL initialization, which lets us do custom hardware configuration before Linux boots.
 
 ### What We Tried
 
@@ -31,19 +31,19 @@ The code attempts to:
 
 ### Current Status
 
-**COMMENTED OUT** - These modifications are currently disabled (lines 158-168).
+**COMMENTED OUT** – These modifications are currently disabled (lines 158-168).
 
 ### Why It Doesn't Work
 
 These FSBL modifications are **not enough** to enable CCI-400 because:
 
-1. **PMUFW Dependency**: The Platform Management Unit Firmware (PMUFW) controls clock gating and power domains. CCI-400 clocks might be gated by PMUFW before FSBL even runs.
+1. **PMUFW Dependency**: The Platform Management Unit Firmware (PMUFW) controls clock gating and power domains. The CCI-400 clocks might be gated by PMUFW before FSBL even runs.
 
 2. **ACE Port Configuration**: CCI-400 needs proper ACE (AXI Coherency Extensions) port setup, which is usually done by PMUFW or earlier boot firmware.
 
-3. **Register Access Timing**: Writing to CCI-400 registers during FSBL might be too late if hardware initialization already happened earlier in boot.
+3. **Register Access Timing**: Writing to CCI-400 registers during FSBL might be too late—hardware initialization could have already happened earlier in the boot sequence.
 
-4. **Missing Prerequisites**: Other system-level stuff (interconnect routing, clock tree setup) is probably required too.
+4. **Missing Prerequisites**: There's probably other system-level stuff (interconnect routing, clock tree setup) that's required as well.
 
 ### What Would Actually Work
 
@@ -55,16 +55,15 @@ To fully enable CCI-400, we'd need:
    - Proper power domain sequencing
 
 2. **Modified Boot Flow**:
-   - FSBL writes actually verified to reach hardware
+   - FSBL writes actually verified to reach the hardware
    - Correct register addresses and bit fields double-checked
    - Timing of writes confirmed via hardware debug
 
-3. **Xilinx Support**: Access to PMUFW source code and rebuild tools (needs NDA and EDK license)
+3. **Xilinx Support**: Access to PMUFW source code and rebuild tools—this needs an NDA and EDK license
 
 ### Alternative Approach
 
-Since we can't modify PMUFW in the standard Xilinx flow, current best practice is:
-
+Since we can't modify PMUFW in the standard Xilinx flow, the current best practice is:
 - **Explicit cache management** (flush/invalidate) in software
 - **Non-coherent programming model** with manual synchronization
 - Document the overhead and compare to theoretical coherent performance

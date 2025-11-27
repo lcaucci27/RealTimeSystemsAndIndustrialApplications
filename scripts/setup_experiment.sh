@@ -1,18 +1,6 @@
-#!/bin/bash
-#
-# Setup script for APU-RPU performance experiments on Kria KR260
-# Prepares the Linux environment and checks that everything's in place
-#
-# What you need before running this:
-# - PetaLinux 2022.2 running on the board
-# - Remoteproc enabled for RPU
-# - Device tree with shared memory at 0x3E000000
-# - RPU firmware already compiled (rpu_receiver_io.elf)
-#
-
 set -e
 
-# Basic config - adjust these if your setup is different
+# Basic config, adjust these if your setup is different
 SHMEM_BASE=0x3E000000
 SHMEM_SIZE=0x00800000
 TIMER_BASE=0xFF250000

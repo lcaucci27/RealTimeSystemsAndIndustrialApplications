@@ -1,4 +1,3 @@
-/* rpu_stress_reader.c */
 #include <stdio.h>
 #include <stdint.h>
 #include "xil_printf.h"

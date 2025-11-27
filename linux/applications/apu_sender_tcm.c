@@ -1,15 +1,3 @@
-/*
- * APU TCM Sender - Multi-Size Performance Test
- * 
- * Adattamento del test DDR per usare TCM con packet sizes variabili
- * 
- * Compile: aarch64-linux-gnu-gcc -O2 -o apu_tcm_multisize apu_tcm_multisize.c -static
- * Run: sudo ./apu_tcm_multisize [iterations_per_size] [output_file]
- * 
- * Timer: TTC0 Timer 0 at 0xFF110000 (~100 MHz)
- * TCM: 0xFFE00000 (64KB)
- */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -34,7 +22,7 @@
 /* Timer frequency */
 #define TIMER_FREQ_MHZ      100.0
 
-/* Packet sizes to test (in bytes) - limitati dalla TCM */
+/* Packet sizes to test (in bytes), limited by TCM size */
 static const uint32_t packet_sizes[] = {
     1,      /* Minimum */
     4,      /* Word */
@@ -55,10 +43,10 @@ typedef struct {
     volatile uint32_t apu_timestamp;  /* When APU sent */
     volatile uint32_t rpu_timestamp;  /* When RPU received */
     volatile uint32_t status;
-    volatile uint32_t _pad[3];  // AGGIUNGI PADDING → totale 32 bytes
+    volatile uint32_t _pad[3];  // padding to get 32 bytes total
     /* Data payload starts here */
     volatile uint8_t data[4096];  /* Rest of TCM for data */
-} __attribute__((packed, aligned(16))) TCM_Protocol;  // allinea a 16
+} __attribute__((packed, aligned(16))) TCM_Protocol;  // 16-byte alignment
 
 /* Command codes */
 #define CMD_IDLE        0x00000000
@@ -216,13 +204,13 @@ static int send_packet(uint32_t size, uint8_t *payload, uint32_t *delta_ticks)
 {
     uint32_t ts_start, ts_end;
     
-    /* Check size fits in TCM */
+    /* Make sure size fits in TCM */
     if (size > 4096) {
         fprintf(stderr, "APU: Packet size %u too large for TCM\n", size);
         return -1;
     }
     
-    /* Copy payload */
+    /* Copy payload to TCM */
     if (payload && size > 0) {
         memcpy((void *)tcm_proto->data, payload, size);
     }
@@ -230,31 +218,31 @@ static int send_packet(uint32_t size, uint8_t *payload, uint32_t *delta_ticks)
     /* Set packet size */
     tcm_proto->packet_size = size;
     
-    /* Timestamp START - before final write operations */
+    /* Timestamp START, before final write operations */
     ts_start = read_timer();
     tcm_proto->apu_timestamp = ts_start;
     
     /* Memory barrier */
     __sync_synchronize();
     
-    /* Signal RPU */
+    /* Signal RPU to process */
     tcm_proto->command = CMD_PROCESS;
     
-    /* Timestamp END - right after write (NO RPU WAIT) */
+    /* Timestamp END, right after write (not waiting for RPU) */
     ts_end = read_timer();
     
     /* Calculate write overhead only */
     if (ts_end >= ts_start) {
         *delta_ticks = ts_end - ts_start;
     } else {
-        /* Handle overflow */
+        /* Handle timer overflow */
         *delta_ticks = (0xFFFF - ts_start) + ts_end;
     }
     
     /* Small delay to let RPU process before next packet */
     usleep(100);
     
-    /* Reset for next */
+    /* Reset for next iteration */
     tcm_proto->command = CMD_IDLE;
     
     return 0;
@@ -280,19 +268,19 @@ static int run_experiment(int iterations_per_size, const char *output_file)
     printf("Output file: %s\n", output_file);
     printf("========================================\n\n");
     
-    /* Allocate buffer */
+    /* Allocate buffer for largest packet */
     payload = (uint8_t *)malloc(packet_sizes[NUM_SIZES - 1]);
     if (!payload) {
         perror("Failed to allocate payload");
         return -1;
     }
     
-    /* Fill pattern */
+    /* Fill with test pattern */
     for (uint32_t i = 0; i < packet_sizes[NUM_SIZES - 1]; i++) {
         payload[i] = (uint8_t)(i & 0xFF);
     }
     
-    /* Wait RPU ready */
+    /* Wait for RPU to be ready */
     if (wait_for_rpu_ready(30) != 0) {
         free(payload);
         return -1;
@@ -336,7 +324,7 @@ static int run_experiment(int iterations_per_size, const char *output_file)
                 failed_packets++;
             }
             
-            usleep(100);  /* Small delay */
+            usleep(100);  /* Small delay between packets */
         }
         
         printf("Done (%d/%d)\n", iterations_per_size - failed_packets, iterations_per_size);

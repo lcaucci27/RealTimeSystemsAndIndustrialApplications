@@ -1,4 +1,3 @@
-// RPU Coherence Test - Basic version to check if APU-RPU communication works
 #include <stdio.h>
 #include "xil_cache.h"
 

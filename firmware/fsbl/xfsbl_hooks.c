@@ -11,17 +11,6 @@
 *
 * This is the file which contains FSBL hook functions.
 *
-* <pre>
-* MODIFICATION HISTORY:
-*
-* Ver   Who  Date        Changes
-* ----- ---- -------- -------------------------------------------------------
-* 1.00  kc   04/21/14 Initial release
-* 2.0   bv   12/05/16 Made compliance to MISRAC 2012 guidelines
-*       ssc  03/25/17 Set correct value for SYSMON ANALOG_BUS register
-*
-* </pre>
-*
 * @note
 *
 ******************************************************************************/

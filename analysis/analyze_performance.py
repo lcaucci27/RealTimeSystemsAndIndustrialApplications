@@ -1,16 +1,3 @@
-#!/usr/bin/env python3
-"""
-Performance analysis script for APU-RPU communication experiments
-
-Takes the CSV results from our tests and generates plots comparing 
-what we actually measured (non-coherent) vs what we'd theoretically 
-get if CCI-400 cache coherence was working.
-
-Usage:
-    python3 analyze_performance.py performance_results.csv
-    python3 analyze_performance.py performance_results.csv --output-prefix experiment1
-"""
-
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -115,7 +102,7 @@ def theoretical_coherent_time(packet_size):
         snoop_time_us = (CCI_SNOOP_LATENCY_NS * num_lines) / 1000.0
         return base_latency_us + snoop_time_us
     
-    # Medium packets - mix of snoop and bandwidth effects
+    # Medium packets, mix of snoop and bandwidth effects
     elif packet_size <= 16 * CACHE_LINE_SIZE:
         num_lines = (packet_size + CACHE_LINE_SIZE - 1) // CACHE_LINE_SIZE
         snoop_time_us = (CCI_SNOOP_LATENCY_NS * num_lines) / 1000.0
@@ -123,7 +110,7 @@ def theoretical_coherent_time(packet_size):
         bw_time_us = (packet_size / DDR4_BANDWIDTH_BS) * 1e6
         return base_latency_us + max(snoop_time_us, bw_time_us)
     
-    # Large packets - bandwidth limited
+    # Large packets, bandwidth limited
     else:
         # Fixed snoop overhead for initial cache line invalidation
         snoop_overhead_us = (CCI_SNOOP_LATENCY_NS * 10) / 1000.0  # ~10 lines
@@ -279,50 +266,7 @@ def plot_results(stats, output_prefix="perf"):
     plt.savefig(plot_file, dpi=300, bbox_inches='tight')
     print(f"Saved plot to {plot_file}")
     
-    # Also save PDF for LaTeX
-    pdf_file = f"{output_prefix}_analysis.pdf"
-    plt.savefig(pdf_file, bbox_inches='tight')
-    print(f"Saved PDF to {pdf_file}")
-    
     plt.close()
-
-
-def generate_latex_table(stats):
-    """Generate LaTeX table for thesis/report."""
-    print("\nGenerating LaTeX table...")
-    
-    latex = r"""
-\begin{table}[H]
-\centering
-\caption{APU-RPU Communication Performance Results (Non-Coherent Scenario)}
-\label{tab:perf_results}
-\begin{tabular}{@{}rrrrrrr@{}}
-\toprule
-\textbf{Size} & \textbf{Mean} & \textbf{Std} & \textbf{Min} & \textbf{Max} & \textbf{CV} & \textbf{Speedup} \\
-\textbf{(bytes)} & \textbf{(µs)} & \textbf{(µs)} & \textbf{(µs)} & \textbf{(µs)} & \textbf{(\%)} & \textbf{Potential} \\
-\midrule
-"""
-    
-    for _, row in stats.iterrows():
-        size = int(row['packet_size'])
-        if size >= 1024:
-            size_str = f"{size//1024} KB"
-        else:
-            size_str = f"{size}"
-        
-        theory_coh = theoretical_coherent_time(row['packet_size'])
-        speedup = row['mean'] / theory_coh
-        
-        latex += f"{size_str} & {row['mean']:.3f} & {row['std']:.3f} & "
-        latex += f"{row['min']:.3f} & {row['max']:.3f} & {row['cv']:.1f} & {speedup:.1f}x \\\\\n"
-    
-    latex += r"""
-\bottomrule
-\end{tabular}
-\end{table}
-"""
-    return latex
-
 
 def print_summary(stats):
     """Print nice summary to console."""
@@ -398,14 +342,6 @@ def main():
     stats_file = f"{args.output_prefix}_statistics.csv"
     stats.to_csv(stats_file, index=False)
     print(f"\nSaved statistics to {stats_file}")
-    
-    # Generate LaTeX if requested
-    if args.latex:
-        latex_table = generate_latex_table(stats)
-        latex_file = f"{args.output_prefix}_table.tex"
-        with open(latex_file, 'w') as f:
-            f.write(latex_table)
-        print(f"Saved LaTeX table to {latex_file}")
     
     print("\nAnalysis complete!")
 

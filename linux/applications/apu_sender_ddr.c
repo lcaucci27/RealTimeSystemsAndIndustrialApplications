@@ -1,16 +1,3 @@
-/*
- * APU Sender - Performance Measurement Orchestrator (TTC Version)
- * 
- * Linux userspace app that runs on the APU (Cortex-A53) and sends
- * data packets to RPU through shared memory while measuring transfer times.
- * 
- * Compile: aarch64-linux-gnu-gcc -O2 -o apu_sender_ttc apu_sender_ttc.c -lrt
- * Run: sudo ./apu_sender_ttc [num_iterations] [output_file]
- * 
- * Timer: TTC0 Timer 0 at 0xFF110000 (~100 MHz)
- * Shared Memory: 0x3E000000 (configured in device tree)
- */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -84,14 +71,14 @@ typedef struct {
  */
 static int map_memory(void)
 {
-    // Need /dev/mem for direct physical memory access
+    // Open /dev/mem to get direct physical memory access
     mem_fd = open("/dev/mem", O_RDWR | O_SYNC);
     if (mem_fd < 0) {
         perror("Failed to open /dev/mem");
         return -1;
     }
     
-    // Map shared memory region
+    // Map the shared memory region
     shared_mem = (volatile uint32_t *)mmap(
         NULL, SHARED_MEM_SIZE,
         PROT_READ | PROT_WRITE,
@@ -118,7 +105,7 @@ static int map_memory(void)
         return -1;
     }
     
-    // Results area is just an offset in shared memory
+    // Results area is just offset into shared memory
     results_mem = (volatile uint32_t *)((uint8_t *)shared_mem + RESULTS_OFFSET);
     
     printf("APU: Memory mapped successfully\n");
@@ -158,13 +145,13 @@ static void init_timer(void)
     uint32_t cnt_ctrl = timer_regs[TTC0_CNT_CTRL / 4];
     printf("APU: TTC0 Counter Control = 0x%08X\n", cnt_ctrl);
     
-    // Enable timer if it's disabled (bit 0 = 1 means disabled)
+    // Enable timer if disabled (bit 0 = 1 means it's stopped)
     if (cnt_ctrl & 0x01) {
         printf("APU: Timer is disabled, enabling...\n");
         timer_regs[TTC0_CNT_CTRL / 4] = 0x00;  /* Enable, overflow mode, increment */
     }
     
-    // Quick check to see if it's actually running
+    // Quick sanity check that it's actually running
     uint32_t val1 = timer_regs[TTC0_CNT_VAL / 4];
     usleep(1000);  /* Wait 1ms */
     uint32_t val2 = timer_regs[TTC0_CNT_VAL / 4];
@@ -231,26 +218,26 @@ static int send_packet(uint32_t size, uint8_t *payload)
 {
     uint32_t ts;
     
-    // Copy payload into shared memory if we have any
+    // Copy payload to shared memory if we have one
     if (payload && size > 0) {
         memcpy((void *)&shared_mem[4], payload, size);
     }
     
-    // Write metadata (size in word 1)
+    // Write metadata (size goes in word 1)
     shared_mem[1] = size;
     
-    // Grab timestamp right before signaling RPU
+    // Timestamp right before we signal the RPU
     ts = read_timer();
     shared_mem[2] = ts;
     shared_mem[3] = 0;  /* Reserved */
     
-    // Memory barrier to ensure everything's written
+    // Memory barrier to make sure everything's written
     __sync_synchronize();
     
-    // Signal packet is ready
+    // Signal that packet is ready
     shared_mem[0] = MAGIC_START;
     
-    // Wait for RPU to acknowledge (10ms timeout)
+    // Wait for RPU to ACK (10ms timeout should be plenty)
     if (wait_for_ack(10000) != 0) {
         fprintf(stderr, "APU: WARNING - No ACK for packet size %u\n", size);
         return -1;
@@ -280,19 +267,19 @@ static int run_experiment(int iterations_per_size, const char *output_file)
     printf("Output file: %s\n", output_file);
     printf("========================================\n\n");
     
-    // Allocate buffer for largest packet
+    // Allocate buffer for the largest packet we'll send
     payload = (uint8_t *)malloc(packet_sizes[NUM_SIZES - 1]);
     if (!payload) {
         perror("Failed to allocate payload buffer");
         return -1;
     }
     
-    // Fill with simple test pattern
+    // Fill with a simple test pattern
     for (uint32_t i = 0; i < packet_sizes[NUM_SIZES - 1]; i++) {
         payload[i] = (uint8_t)(i & 0xFF);
     }
     
-    // Make sure RPU is ready before we start
+    // Wait for RPU to be ready before starting
     if (wait_for_rpu_ready(30) != 0) {
         free(payload);
         return -1;
@@ -306,7 +293,7 @@ static int run_experiment(int iterations_per_size, const char *output_file)
         
         printf("APU: Testing packet size: %u bytes\n", pkt_size);
         
-        // Send multiple iterations for stats
+        // Run multiple iterations for each size to get statistics
         for (iter = 0; iter < iterations_per_size; iter++) {
             if (send_packet(pkt_size, payload) == 0) {
                 total_packets++;

@@ -1,13 +1,3 @@
-/*
- * RPU Receiver - Cache Invalidation Overhead Measurement
- * 
- * This version measures ONLY the cache invalidation overhead.
- * We're trying to figure out what cost CCI-400 hardware coherence would save us.
- * 
- * Timer: TTC0 Timer 0 at 0xFF110000 (~100 MHz)
- * Shared Memory: 0x3E000000
- */
-
 #include <stdint.h>
 #include <string.h>
 #include "xil_printf.h"
@@ -62,16 +52,16 @@ static void init_timer(void)
 {
     xil_printf("RPU: Initializing TTC0 Timer 0...\r\n");
     
-    // Stop the counter first
+    // Stop counter first
     Xil_Out32(TTC0_CNT_CTRL, 0x01);
     
-    // Configure clock with no prescaler
+    // No prescaler, just run at full speed
     Xil_Out32(TTC0_CLK_CTRL, 0x00);
     
-    // Start it
+    // Start it up
     Xil_Out32(TTC0_CNT_CTRL, 0x00);
     
-    // Quick check to make sure it's actually ticking
+    // Quick sanity check that it's actually running
     uint32_t val1 = Xil_In32(TTC0_CNT_VAL);
     for (volatile int i = 0; i < 1000; i++);
     uint32_t val2 = Xil_In32(TTC0_CNT_VAL);
@@ -123,7 +113,7 @@ static void store_result(uint32_t pkt_size, uint32_t apu_ts, uint32_t rpu_ts)
 {
     if (result_count >= MAX_RESULTS) return;
     
-    // Calculate delta, handling wraparound
+    // Calculate delta, need to handle timer wraparound
     uint32_t delta;
     if (rpu_ts >= apu_ts) {
         delta = rpu_ts - apu_ts;
@@ -131,30 +121,30 @@ static void store_result(uint32_t pkt_size, uint32_t apu_ts, uint32_t rpu_ts)
         delta = (0xFFFFFFFF - apu_ts) + rpu_ts + 1;
     }
     
-    // Pack everything into the results buffer
+    // Pack result into buffer
     uint32_t offset = 1 + (result_count * 5);
     results_mem[offset + 0] = pkt_size;
     results_mem[offset + 1] = apu_ts;
     results_mem[offset + 2] = rpu_ts;
     results_mem[offset + 3] = delta;
-    results_mem[offset + 4] = 0xA5A5A5A5UL;  // Validation marker
+    results_mem[offset + 4] = 0xA5A5A5A5UL;  // validation marker
     
     result_count++;
 }
 
 /**
- * Main receiver loop - measures ONLY cache invalidation overhead
+ * Main receiver loop, measures ONLY cache invalidation overhead
  * 
- * What we're measuring:
- * 1. Time for APU to write data to DRAM (uncached on APU side with O_SYNC)
- * 2. Time for RPU to poll and detect the signal
- * 3. Time for RPU to invalidate cache for metadata
- * 4. Time for RPU to invalidate cache for payload
+ * What we're measuring here:
+ * 1. Time for APU to write to DRAM (it's using uncached writes with O_SYNC)
+ * 2. Time for RPU to poll and see the signal
+ * 3. Time to invalidate cache for metadata
+ * 4. Time to invalidate cache for payload
  * 
- * What we're NOT measuring: time to actually read and process the data.
- * That cost would be there regardless of cache coherence.
+ * What we're NOT measuring: actually reading and processing the data.
+ * That would happen even with hardware coherence, so it's not part of the overhead.
  * 
- * The cache invalidation operations are what CCI-400 would eliminate entirely.
+ * The cache invalidation calls are exactly what CCI-400 would eliminate.
  */
 static void receiver_loop(void)
 {
@@ -164,15 +154,15 @@ static void receiver_loop(void)
     xil_printf("RPU: Entering receiver loop (INVALIDATION OVERHEAD ONLY)...\r\n");
     xil_printf("RPU: Waiting for packets at 0x%08X\r\n", (uint32_t)shared_mem);
     
-    // Signal APU that we're ready
+    // Tell APU we're ready to go
     shared_mem[0] = MAGIC_READY;
     flush_control_word();
     
     while (1) {
-        // Only invalidate the control word for polling
+        // Only invalidate control word for polling
         invalidate_control_word();
         
-        // Check if we're done
+        // Check if experiment is done
         if (shared_mem[0] == MAGIC_DONE) {
             xil_printf("RPU: Received DONE signal\r\n");
             break;
@@ -181,62 +171,62 @@ static void receiver_loop(void)
         // Check for new packet
         if (shared_mem[0] == MAGIC_START) {
             /* 
-             * Here's the real overhead that CCI-400 would eliminate:
-             * - Invalidate metadata cache lines
-             * - Read metadata (size and timestamp)
-             * - Invalidate payload cache lines
+             * Here's what CCI-400 would save us:
+             * - Invalidating metadata cache lines
+             * - Reading metadata (size and timestamp)
+             * - Invalidating payload cache lines
              * 
-             * We intentionally DON'T read through the payload byte-by-byte.
-             * Reading the actual data would take time even with hardware coherence,
-             * so we're only measuring the pure cache management overhead.
+             * We intentionally don't read through the payload data.
+             * Reading the actual bytes takes time even with hardware coherence,
+             * so we only measure pure cache management overhead here.
              */
             
-            // Invalidate metadata (first 256 bytes = 4 cache lines)
+            // Invalidate metadata area (first 256 bytes = 4 cache lines)
             Xil_DCacheInvalidateRange((INTPTR)shared_mem, 256);
             
-            // Read what we need from metadata
+            // Grab what we need from metadata
             packet_size = shared_mem[1];
             apu_ts = shared_mem[2];
             
             /* 
-             * This is the key part: invalidate the payload cache lines.
-             * This overhead is exactly what CCI-400 would get rid of!
-             * We invalidate but don't read the data - that would add
-             * unnecessary overhead to our measurement.
+             * Key part: invalidate payload cache lines.
+             * This is the overhead CCI-400 would completely eliminate!
+             * We invalidate but don't actually read - that would add
+             * extra overhead that's not really what we're measuring.
              */
             Xil_DCacheInvalidateRange((INTPTR)&shared_mem[4], packet_size);
             
             /* 
-             * Memory barrier to ensure all invalidations complete before timestamp.
-             * Pretty important for accurate timing.
+             * Memory barrier to make sure all invalidations finish before we timestamp.
+             * Important for accurate measurements.
              */
             __asm__ __volatile__("dsb sy" ::: "memory");
             
-            // Timestamp AFTER everything's done
+            // Take timestamp after all the cache work is done
             rpu_ts = read_timer();
             
-            // Save this measurement
+            // Store this measurement
             store_result(packet_size, apu_ts, rpu_ts);
             
             packets_received++;
             
-            // Acknowledge back to APU
+            // Send ACK back to APU
             shared_mem[0] = MAGIC_ACK;
             flush_control_word();
             
-            // Progress update every 100 packets
+            // Print progress every 100 packets
             if (packets_received % 100 == 0) {
                 xil_printf("RPU: Received %u packets\r\n", packets_received);
             }
         }
         
-        // Small delay between polls
+        // Small delay between poll attempts
         for (volatile int i = 0; i < 10; i++);
     }
     
     xil_printf("RPU: Total packets: %u\r\n", packets_received);
     
-    // Write final count and flush everything
+    // Write count and flush everything to memory
     results_mem[0] = result_count;
     flush_results();
 }
@@ -268,7 +258,7 @@ int main(void)
     
     xil_printf("\r\nRPU: Experiment complete.\r\n");
     
-    // Hang here when done
+    // Just hang here when we're done
     while (1) {
         for (volatile int i = 0; i < 1000000; i++);
     }

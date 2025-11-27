@@ -1,10 +1,3 @@
-/*
- * coherency_test.c - Cache Coherency Test Module for Zynq UltraScale+ MPSoC
- * 
- * Sets up some cacheable memory with Outer Shareable attributes to test
- * if hardware cache coherency actually works between APU and RPU through CCI-400.
- */
-
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -34,7 +27,7 @@ static struct proc_dir_entry *proc_entry;
 #define PATTERN_NEW 0xF0F0F0F0  // "New" value we keep in cache only
 
 /*
- * Proc file read handler - shows physical address and current buffer state
+ * Proc file read handler, shows physical address and current buffer state
  */
 static int coherency_proc_show(struct seq_file *m, void *v)
 {

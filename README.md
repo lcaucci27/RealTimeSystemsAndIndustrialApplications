@@ -1,6 +1,6 @@
 # Zynq UltraScale+ MPSoC Cache Coherence Analysis
 
-Experimental analysis of cache coherence mechanisms in Xilinx Zynq UltraScale+ MPSoC, focusing on CCI-400 hardware coherence between APU (Cortex-A53) and RPU (Cortex-R5F) cores.
+This project analyzes cache coherence mechanisms in Xilinx Zynq UltraScale+ MPSoC, with a focus on the CCI-400 hardware coherence between APU (Cortex-A53) and RPU (Cortex-R5F) cores.
 
 ## 👥 Authors
 
@@ -9,52 +9,107 @@ Experimental analysis of cache coherence mechanisms in Xilinx Zynq UltraScale+ M
 
 **Course:** Real Time Systems And Industrial Applications  
 **Institution:** Università degli Studi di Napoli Federico II  
-**Platform:** Xilinx Kria KR260
+**Platform:** Xilinx Kria KR260  
 **Academic Year:** 2024/2025
 
 ---
 
 ## 📖 Project Overview
 
-This project investigates cache coherence in heterogeneous multiprocessor systems, specifically analyzing the ARM CCI-400 (Cache Coherent Interconnect) in Zynq UltraScale+ MPSoC architecture. Through experimental measurements and theoretical modeling, we quantify the overhead of manual cache management and estimate potential performance gains with functional hardware coherence.
+We're investigating cache coherence in heterogeneous multiprocessor systems—specifically the ARM CCI-400 (Cache Coherent Interconnect) within the Zynq UltraScale+ architecture. The goal was to measure the overhead of manual cache management and estimate what performance gains we could get if the hardware coherence actually worked.
 
 ### Key Findings
 
-- **Cache Invalidation Overhead:** ~1.5-3.5 µs for typical packet sizes (baseline non-coherent scenario)
-- **CCI-400 Status:** Not operational in standard Xilinx BSP due to missing PMUFW initialization
-- **Theoretical Speedup:** 30-50% improvement for small packets (<128B) with functional hardware coherence
-- **Measurement Method:** Direct timer-based profiling with TTC0 @ 100MHz (10ns resolution)
+- **Cache Invalidation Overhead:** Around 1.5-3.5 µs for typical packet sizes in the baseline non-coherent scenario
+- **CCI-400 Status:** Turns out it's not operational in the standard Xilinx BSP because the PMUFW doesn't initialize it properly
+- **Theoretical Speedup:** We're looking at 30-50% improvement for small packets (<128B) if hardware coherence were functional
+- **Measurement Method:** Direct timer-based profiling using TTC0 at 100MHz, giving us 10ns resolution
 
 ---
+
+## 🗂️ Repository Structure
+
+```
+RealTimeSystemsAndIndustrialApplications/
+├── Real_Time_Systems_And_Industrial_Applications___Caucci__Cecere.pttx
+├── Real_Time_Systems_And_Industrial_Applications___Caucci__Cecere.pdf
+├── README.md                    # Main project documentation
+├── LICENSE                      # MIT License
+├── .gitignore                   # Git ignore rules
+│
+├── firmware/                    # Embedded firmware for MPSoC cores
+│   ├── apu/
+│   │   └── apu_bare_metal.c    # Bare-metal APU coherence test
+│   ├── rpu/
+│   │   ├── coherence_test/     # Basic coherence verification
+│   │   │   ├── rpu_coherency_test.c
+│   │   │   └── lscript.ld      # Linker script
+│   │   ├── coherence_test_mod/ # Modified coherence test with monitoring
+│   │   │   ├── rpu_coherency_test_mod.c
+│   │   │   └── lscript.ld      # Linker script
+│   │   └── performance_test/   # Performance measurement firmware
+│   │       ├── rpu_receiver_ddr.c  # RPU cache invalidation overhead (DDR)
+│   │       └── rpu_receiver_tcm.c  # RPU performance test (TCM)
+│   └── fsbl/
+│       ├── xfsbl_hooks.c       # FSBL modifications for CCI-400 (experimental)
+│       └── README.md           # Explanation of FSBL modifications
+│
+├── linux/                       # Linux userspace and kernel components
+│   ├── applications/
+│   │   ├── apu_sender_ddr.c    # APU performance test (DDR shared memory)
+│   │   ├── apu_sender_tcm.c    # APU performance test (TCM shared memory)
+│   │   ├── apu_coherency_test.c # Simple coherence verification
+│   │   └── Makefile            # Build configuration
+│   ├── device-tree/
+│   │   └── system_current.dts  # Complete device tree (extracted from board)
+│   └── kernel-modules/
+│       ├── coherency_stress.c  # Kernel-space stress test module
+│       └── Makefile            # Kernel module build
+│
+├── analysis/                    # Data analysis and visualization
+│   ├── analyze_performance.py  # Python script for DDR performance analysis
+│   ├── compare_tcm_ddr.py      # Comparison between TCM and DDR results
+│   └── requirements.txt        # Python dependencies
+│
+├── docs/                        # Documentation
+│   ├── kr260_setup_guide.md    # Hardware setup guide
+│
+└── scripts/                     # Automation scripts
+    ├── setup_experiment.sh     # Experiment environment setup
+    ├── build_rpu.sh            # RPU firmware build script
+    ├── deploy.sh               # Deploy to target board
+    └── run_tests.sh            # Execute performance tests
+```
+
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
 **Hardware:**
-- Xilinx Kria KR260 Starter Kit (or equivalent Zynq UltraScale+ board)
+- Xilinx Kria KR260 Starter Kit (or any equivalent Zynq UltraScale+ board)
 - SD card with PetaLinux 2022.2
-- USB-UART cable for debug console
-- Network connection (Optional: for SSH access)
+- USB-UART cable for the debug console
+- Network connection (optional, for SSH access)
 
 **Software:**
-- Vitis 2022.2 (for RPU firmware compilation)
-- PetaLinux 2022.2 SDK (for cross-compilation)
+- Vitis 2022.2 for compiling RPU firmware
+- PetaLinux 2022.2 SDK for cross-compilation
 - Python 3.8+ with numpy, pandas, matplotlib
-- Linux development machine (Ubuntu 20.04+ recommended)
+- Linux development machine—Ubuntu 20.04+ is recommended
 
 ### 1. Build RPU Firmware
 
 ```bash
-# Using Vitis IDE (recommended)
+# Using Vitis IDE (recommended approach)
 # 1. Open Vitis 2022.2
 # 2. Create new application project
 # 3. Platform: zynqmp_fsbl_bsp
 # 4. Domain: standalone on psu_cortexr5_0
 # 5. Import firmware/rpu/performance_test/rpu_perf_test.c
-# 6. Build project → generates .elf file
+# 6. Build project → this generates the .elf file
 
-# Or use script (requires Vitis CLI)
+# Or use the script if you have Vitis CLI set up
 cd scripts
 ./build_rpu.sh
 ```
@@ -67,7 +122,7 @@ cd linux/applications
 # Cross-compile for ARM64
 make
 
-# Or manually:
+# Or do it manually:
 aarch64-linux-gnu-gcc -O2 -o <OUTPUT> <SOURCE.c> -lrt
 ```
 
@@ -75,11 +130,11 @@ aarch64-linux-gnu-gcc -O2 -o <OUTPUT> <SOURCE.c> -lrt
 
 Connect your board through USB-JTAG
 
-Serial line: COMX
-Speed (baud): 115200
-Data bits: 8
-Stop bits: 1
-Parity: None
+Serial line: COMX  
+Speed (baud): 115200  
+Data bits: 8  
+Stop bits: 1  
+Parity: None  
 Flow control: None
 
 ### 3.2. Deploy to Board (SSH)
@@ -93,17 +148,17 @@ export BOARD_IP=192.168.1.100
 
 ```bash
 # On the board (via PuTTY)
-# Load RPU firmware via Remoteproc
+# Load RPU firmware using Remoteproc
 echo <FIRMWARE.elf> > /sys/class/remoteproc/remoteproc0/firmware
 echo start > /sys/class/remoteproc/remoteproc0/state
 
-# Wait a couple seconds for RPU initialization
+# Give it a couple seconds to initialize
 sleep 2
 
-# Run APU test (generates results.csv)
+# Run the APU test and generates results.csv
 ./apu_perf_test <REPETITIONS> <OUTPUT.csv>
 
-# Results saved to csv
+# Results get saved to csv
 ```
 
 ### 5. Analyze Results
@@ -112,7 +167,7 @@ sleep 2
 # Copy results from board to USB drive
 scp /home/root mnt/usb
 
-# Run analysis script
+# Run the analysis script
 python3 <ANALYSIS_SCRIPT.py> <OUTPUT.csv> output/
 
 # Generated files:
@@ -127,35 +182,35 @@ python3 <ANALYSIS_SCRIPT.py> <OUTPUT.csv> output/
 
 ### Test Scenarios
 
-We implemented multiple test approaches to isolate different aspects of cache coherence:
+We implemented several different test approaches to isolate various aspects of cache coherence:
 
 #### 1. **Performance Measurement Test** (Primary)
 - **Location:** `firmware/rpu/performance_test/` + `linux/applications/apu_sender_ddr.c`
-- **Purpose:** Measure cache invalidation overhead in non-coherent scenario
+- **Purpose:** Measure cache invalidation overhead in the non-coherent scenario
 - **Method:** 
   - APU writes data to shared memory (uncached via O_SYNC)
-  - APU signals RPU via magic value
-  - RPU invalidates cache lines for metadata and payload
-  - RPU takes timestamp immediately after invalidation (before reading data)
-  - Delta = Time to invalidate cache (overhead that CCI-400 would eliminate)
+  - APU signals the RPU using a magic value
+  - RPU invalidates cache lines for both metadata and payload
+  - RPU takes timestamp immediately after invalidation, before reading any data
+  - The delta gives us the time to invalidate cache—this is the overhead that CCI-400 would eliminate
 - **Packet Sizes:** 1B, 16B, 32B, 64B, 128B, 256B, 512B, 1KB, 2KB, 4KB, 8KB, 16KB, 32KB, 64KB
-- **Iterations:** 100 per size (1400 total measurements)
+- **Iterations:** 100 per size, so 1400 total measurements
 
 #### 2. **Basic Coherence Test** (Verification)
 - **Location:** `firmware/rpu/coherence_test/` + `linux/applications/apu_coherency_test.c`
-- **Purpose:** Verify basic APU-RPU communication
-- **Method:** Simple ping-pong test with cache enabled (no explicit management)
-- **Expected Result:** Fails without CCI-400 (demonstrates need for manual cache ops)
+- **Purpose:** Verify basic APU-RPU communication works
+- **Method:** Simple ping-pong test with cache enabled but no explicit management
+- **Expected Result:** Fails without CCI-400, which demonstrates why we need manual cache operations
 
 #### 3. **Kernel Module Stress Test** (Advanced)
 - **Location:** `linux/kernel-modules/coherency_stress.c`
 - **Purpose:** High-frequency write test from kernel space
 - **Method:**
-  - Kernel module writes alternating patterns (OLD/NEW) without cache flush
+  - Kernel module writes alternating patterns (OLD/NEW) without flushing cache
   - RPU reads continuously and counts pattern occurrences
-  - If NEW pattern visible → coherence working
-  - If only OLD pattern → no coherence (RPU sees stale DRAM)
-- **Expected Result:** Confirms CCI-400 not operational (0% NEW pattern detection)
+  - If the NEW pattern is visible → coherence is working
+  - If we only see the OLD pattern → no coherence (RPU is seeing stale DRAM)
+- **Expected Result:** Confirms CCI-400 isn't operational (0% NEW pattern detection)
 
 ### Measurement Details
 
@@ -163,13 +218,13 @@ We implemented multiple test approaches to isolate different aspects of cache co
 - **Timer:** TTC0 (Triple Timer Counter 0) at 0xFF110000
 - **Frequency:** 100 MHz
 - **Resolution:** 10 nanoseconds per tick
-- **Format:** 32-bit counter (good enough for sub-second measurements)
+- **Format:** 32-bit counter, which is good enough for sub-second measurements
 
 **Shared Memory:**
 - **Base Address:** 0x3E000000 (physical)
 - **Size:** 8 MB reserved region
-- **Device Tree:** Reserved via `reserved-memory` node (not explicitly marked coherent due to CCI-400 limitations)
-- **APU Access:** Non-cacheable (O_SYNC flag) to simulate conservative scenario
+- **Device Tree:** Reserved via `reserved-memory` node (not explicitly marked coherent because of the CCI-400 limitations)
+- **APU Access:** Non-cacheable (O_SYNC flag) to simulate a conservative scenario
 - **RPU Access:** Cacheable with manual invalidation
 
 **Critical Timing Point:**
@@ -182,7 +237,7 @@ __asm__ __volatile__("dsb sy" ::: "memory");             // Make sure it complet
 rpu_ts = read_timer();  // ← TIMESTAMP HERE (after invalidation, before data read)
 ```
 
-This captures ONLY the cache management overhead, not data transfer time.
+This captures only the cache management overhead, not the actual data transfer time.
 
 ## 🔧 Technical Details
 
@@ -191,24 +246,25 @@ This captures ONLY the cache management overhead, not data transfer time.
 **Current State:** NOT OPERATIONAL
 
 **Root Cause Analysis:**
-1. **PMUFW Limitations:** Standard Xilinx Platform Management Unit Firmware (PMUFW) doesn't initialize CCI-400 clocks and ports for RPU
-2. **Missing Prerequisites:**
-   - CCI-400 clock gating must be disabled
-   - ACE (AXI Coherency Extensions) ports must be configured for Cortex-R5F
-   - SCU (Snoop Control Unit) must be enabled for RPU domain
-3. **Device Tree Limitations:** `dma-coherent` property present but not effective without PMUFW support
+
+The standard Xilinx Platform Management Unit Firmware (PMUFW) just doesn't initialize the CCI-400 clocks and ports for the RPU. We're missing several prerequisites:
+- CCI-400 clock gating needs to be disabled
+- ACE (AXI Coherency Extensions) ports must be configured for the Cortex-R5F
+- SCU (Snoop Control Unit) must be enabled for the RPU domain
+
+The `dma-coherent` property is there in the device tree, but it's not effective without proper PMUFW support.
 
 **Attempted Solutions:**
-- Modified FSBL hooks (`firmware/fsbl/xfsbl_hooks.c`) to write CCI-400 registers
-- Result: Not enough, requires PMUFW rebuild with Xilinx EDK (not accessible in standard flow)
 
-**Conclusion:** Hardware coherence would give significant benefits (30-50% for our workload), but needs custom PMUFW or Xilinx support for enabling CCI-400 for heterogeneous cores.
+We tried modifying FSBL hooks (`firmware/fsbl/xfsbl_hooks.c`) to write directly to CCI-400 registers. Result: not enough. You really need to rebuild the PMUFW with Xilinx EDK, which isn't accessible in the standard flow.
+
+**Conclusion:** Hardware coherence would give us significant benefits (30-50% for our workload), but you'd need either a custom PMUFW or Xilinx support to properly enable CCI-400 for heterogeneous cores.
 
 ### Device Tree Configuration
 
-Key device tree nodes (from `linux/device-tree/system_current.dts`):
+Key device tree nodes are in `linux/device-tree/system_current.dts`.
 
-**Note:** Our tests use 0x3E000000 (not explicitly in DT) since it's free LPDDR4 space. For production, use official reserved regions.
+**Note:** Our tests use 0x3E000000, which isn't explicitly in the DT, but it's free LPDDR4 space. For production you'd want to use the official reserved regions.
 
 ---
 
@@ -228,13 +284,13 @@ Key device tree nodes (from `linux/device-tree/system_current.dts`):
 
 ## 📄 License
 
-This project is released under the MIT License. See [LICENSE](LICENSE) file for details.
+This project is released under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ---
 
 ## 🤝 Contributing
 
-This is an academic project with completed experimental phase. However, we welcome:
+This is an academic project and the experimental phase is complete. However, we welcome:
 - Bug reports and fixes
 - Improved documentation
 - Extensions for other Zynq platforms

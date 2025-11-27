@@ -2,7 +2,7 @@
 
 obj-m += coherency_test.o
 
-# Kernel source directory - change this if your kernel sources are elsewhere
+# Kernel source directory, change this if your kernel sources are elsewhere
 KERNEL_SRC ?= /lib/modules/$(shell uname -r)/build
 
 # Cross-compilation setup for ARM64

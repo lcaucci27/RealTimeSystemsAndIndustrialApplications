@@ -1,15 +1,3 @@
-/*****************************************************************************
-*
-* APU Test Application - I/O Coherence Verification with RPU
-* File: apu_main.c
-*
-* This program deliberately creates an incoherence situation:
-* 1. Writes an old pattern and flushes it to DDR
-* 2. Writes a new pattern WITHOUT flushing the cache
-* 3. RPU should read the new pattern if coherence is actually working
-*
-******************************************************************************/
-
 #include <stdio.h>
 #include "xil_printf.h"
 #include "xil_cache.h"

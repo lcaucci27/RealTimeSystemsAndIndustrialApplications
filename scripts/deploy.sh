@@ -1,16 +1,6 @@
-#!/bin/bash
-#
-# Deploy script - copies all the compiled stuff to the Kria board
-#
-# Usage: ./deploy.sh [board_ip]
-#   board_ip: Optional, defaults to 192.168.1.100
-#
-# You can also set BOARD_IP and BOARD_USER as environment variables
-#
-
 set -e  # Stop if anything goes wrong
 
-# Config - override with args or env vars
+# Config, override with args or env vars
 BOARD_IP="${1:-${BOARD_IP:-192.168.1.100}}"
 BOARD_USER="${BOARD_USER:-root}"
 FIRMWARE_DIR="/lib/firmware"

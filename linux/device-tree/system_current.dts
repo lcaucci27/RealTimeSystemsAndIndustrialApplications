@@ -53,7 +53,7 @@
 		compatible = "iio-hwmon";
 	};
 
-	// APU (Application Processing Unit) - quad-core Cortex-A53 cluster
+	// APU (Application Processing Unit), quad-core Cortex-A53 cluster
 	// These are the main Linux-capable cores we're using for our experiments
 	cpus {
 		#address-cells = <0x01>;
@@ -145,7 +145,7 @@
 		};
 	};
 
-	// IPI (Inter-Processor Interrupt) mailbox - this is how APU talks to PMU and RPU
+	// IPI (Inter-Processor Interrupt) mailbox, this is how APU talks to PMU and RPU
 	zynqmp_ipi {
 		u-boot,dm-pre-reloc;
 		compatible = "xlnx,zynqmp-ipi-mailbox";
@@ -580,7 +580,7 @@
 		// CCI-400 (Cache Coherent Interconnect) at 0xFD6E0000
 		// This is THE key component for hardware cache coherence between APU and RPU
 		// Status is "okay" but in reality it's not operational on KR260 due to PMUFW limitations
-		// This was the main finding of my thesis - BSP doesn't enable it properly
+		// This was the main finding of my thesis, BSP doesn't enable it properly
 		cci@fd6e0000 {
 			compatible = "arm,cci-400";
 			status = "okay";
@@ -590,7 +590,7 @@
 			#size-cells = <0x01>;
 			phandle = <0x44>;
 
-			// PMU for monitoring CCI-400 traffic - useful for profiling cache traffic
+			// PMU for monitoring CCI-400 traffic, useful for profiling cache traffic
 			pmu@9000 {
 				compatible = "arm,cci-400-pmu,r1";
 				reg = <0x9000 0x5000>;
@@ -719,7 +719,7 @@
 			phandle = <0x4c>;
 		};
 
-		// GIC-400 (Generic Interrupt Controller) - routes all interrupts in the system
+		// GIC-400 (Generic Interrupt Controller), routes all interrupts in the system
 		interrupt-controller@f9010000 {
 			compatible = "arm,gic-400";
 			#interrupt-cells = <0x03>;
@@ -858,7 +858,7 @@
 			phandle = <0x55>;
 		};
 
-		// DDR controller - manages the actual DDR4 memory
+		// DDR controller, manages the actual DDR4 memory
 		memory-controller@fd070000 {
 			compatible = "xlnx,zynqmp-ddrc-2.40a";
 			reg = <0x00 0xfd070000 0x00 0x30000>;
@@ -1135,7 +1135,7 @@
 			};
 		};
 
-		// OCM (On-Chip Memory) - 256KB of fast SRAM directly on the SoC
+		// OCM (On-Chip Memory), 256KB of fast SRAM directly on the SoC
 		memory-controller@ff960000 {
 			compatible = "xlnx,zynqmp-ocmc-1.0";
 			reg = <0x00 0xff960000 0x00 0x1000>;
@@ -1463,7 +1463,7 @@
 			phandle = <0x6e>;
 		};
 
-		// SMMU (System Memory Management Unit) - provides IOMMU functionality
+		// SMMU (System Memory Management Unit), provides IOMMU functionality
 		// Disabled by default, would need explicit enablement for DMA isolation
 		smmu@fd800000 {
 			compatible = "arm,mmu-500";
@@ -1513,8 +1513,8 @@
 			};
 		};
 
-		// TTC0 at 0xFF110000 - this is THE timer we use for performance measurements!
-		// 32-bit timer running at 100MHz (10ns resolution) - perfect for cache latency measurements
+		// TTC0 at 0xFF110000, this is THE timer we use for performance measurements!
+		// 32-bit timer running at 100MHz (10ns resolution), perfect for cache latency measurements
 		timer@ff110000 {
 			compatible = "cdns,ttc";
 			status = "okay";
@@ -1577,7 +1577,7 @@
 			phandle = <0x74>;
 		};
 
-		// UART1 - the main debug serial console at 115200 baud
+		// UART1, the main debug serial console at 115200 baud
 		// This is ttyPS1 on the /dev/ttyUSB2 interface when connecting via UART
 		serial@ff010000 {
 			pinctrl-0 = <0x92>;
@@ -2029,7 +2029,7 @@ clocks = <0x03 0x48>;
 			phandle = <0x1d>;
 		};
 
-		// Shared memory at 0x70000000 (16MB) - THIS IS WHERE MY EXPERIMENTS HAPPEN
+		// Shared memory at 0x70000000 (16MB), THIS IS WHERE MY EXPERIMENTS HAPPEN
 		// This is the region we use for coherency testing and performance measurements
 		// Marked as "dma-coherent" but in practice coherency depends on CCI-400 being enabled
 		rpu_shmem@70000000 {
@@ -2040,7 +2040,7 @@ clocks = <0x03 0x48>;
 		};
 	};
 
-	// TCM (Tightly-Coupled Memory) regions for RPU - 64KB each
+	// TCM (Tightly-Coupled Memory) regions for RPU, 64KB each
 	// These are the fast local SRAMs inside the Cortex-R5F cores
 	tcm_0a@ffe00000 {
 		no-map;
@@ -2071,7 +2071,7 @@ clocks = <0x03 0x48>;
 		#address-cells = <0x02>;
 		#size-cells = <0x02>;
 
-		// R5F core 0 - this is where our RPU firmware runs
+		// R5F core 0, this is where our RPU firmware runs
 		// Uses remoteproc framework for Linux-controlled lifecycle management
 		r5f_0 {
 			compatible = "xilinx,r5f";

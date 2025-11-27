@@ -1,20 +1,6 @@
-#!/bin/bash
-#
-# Automated test runner for Kria KR260 performance experiments
-#
-# What this does:
-# 1. Loads RPU firmware via Remoteproc
-# 2. Runs APU test application
-# 3. Grabs the results
-#
-# Usage: ./run_tests.sh [board_ip] [iterations]
-#   board_ip: Optional, defaults to 192.168.1.100
-#   iterations: Optional, how many times to test each packet size (default: 100)
-#
-
 set -e  # Bail out if anything fails
 
-# Basic config - can override with args
+# Basic config, can override with args
 BOARD_IP="${1:-${BOARD_IP:-192.168.1.100}}"
 BOARD_USER="${BOARD_USER:-root}"
 ITERATIONS="${2:-100}"

@@ -1,34 +1,23 @@
-#!/usr/bin/env python3
-"""
-TCM vs DDR Performance Comparison Script
-
-Calcola la latenza REALE usando (rpu_timestamp - apu_timestamp) invece di delta_ticks
-che include l'overhead di polling.
-
-Usage:
-    python3 compare_tcm_ddr.py tcm_results.csv ddr_results.csv
-"""
-
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import ScalarFormatter
 import sys
 
-# Timer frequency
+# Timer runs at 100 MHz
 TIMER_FREQ_MHZ = 100.0
 
 def load_and_compute_real_latency(filename, label):
-    """Load CSV and compute real latency from timestamps."""
+    """Load CSV and calculate the actual latency from the timestamps."""
     print(f"\nLoading {label} data from {filename}...")
     
     df = pd.read_csv(filename)
     
-    # Compute REAL latency: rpu_timestamp - apu_timestamp
+    # Real latency is just the difference between RPU receiving and APU sending
     df['real_latency_ticks'] = df['rpu_timestamp'] - df['apu_timestamp']
     df['real_latency_us'] = df['real_latency_ticks'] / TIMER_FREQ_MHZ
     
-    # Filter invalid data
+    # Drop anything that looks wrong (negative latencies shouldn't happen)
     df = df[df['real_latency_us'] > 0]
     
     print(f"  Loaded {len(df)} samples")
@@ -37,7 +26,7 @@ def load_and_compute_real_latency(filename, label):
     return df
 
 def compute_stats_by_size(df):
-    """Compute statistics grouped by packet size."""
+    """Group by packet size and calculate basic statistics."""
     stats = df.groupby('packet_size')['real_latency_us'].agg([
         ('mean', 'mean'),
         ('std', 'std'),
@@ -49,12 +38,13 @@ def compute_stats_by_size(df):
         ('q75', lambda x: x.quantile(0.75))
     ]).reset_index()
     
+    # Coefficient of variation gives us relative jitter
     stats['cv'] = (stats['std'] / stats['mean']) * 100
     
     return stats
 
 def print_comparison(tcm_stats, ddr_stats):
-    """Print comparison table."""
+    """Print a nice comparison table between TCM and DDR results."""
     print("\n" + "="*90)
     print("TCM vs DDR LATENCY COMPARISON (Real Latency from Timestamps)")
     print("="*90)
@@ -62,7 +52,7 @@ def print_comparison(tcm_stats, ddr_stats):
     print(f"{'(bytes)':<10} {'(µs)':<12} {'(µs)':<12} {'(µs)':<12} {'(µs)':<12} {'(TCM/DDR)':<10}")
     print("-"*90)
     
-    # Merge on packet_size
+    # Merge the two datasets on packet size
     merged = pd.merge(tcm_stats, ddr_stats, on='packet_size', suffixes=('_tcm', '_ddr'))
     
     for _, row in merged.iterrows():
@@ -78,6 +68,7 @@ def print_comparison(tcm_stats, ddr_stats):
     print("KEY FINDINGS:")
     print("="*90)
     
+    # Overall averages
     avg_tcm = merged['mean_tcm'].mean()
     avg_ddr = merged['mean_ddr'].mean()
     overall_speedup = avg_ddr / avg_tcm
@@ -86,6 +77,7 @@ def print_comparison(tcm_stats, ddr_stats):
     print(f"2. Average DDR latency: {avg_ddr:.3f} µs")
     print(f"3. Overall TCM speedup: {overall_speedup:.1f}x faster than DDR")
     
+    # Jitter comparison
     avg_tcm_std = merged['std_tcm'].mean()
     avg_ddr_std = merged['std_ddr'].mean()
     print(f"\n4. Average TCM std dev: {avg_tcm_std:.3f} µs (CV: {merged['cv_tcm'].mean():.1f}%)")
@@ -102,7 +94,7 @@ def print_comparison(tcm_stats, ddr_stats):
     return merged
 
 def plot_comparison(merged, tcm_df, ddr_df):
-    """Generate comparison plots."""
+    """Generate the comparison plots (4 subplots)."""
     print("\nGenerating comparison plots...")
     
     fig, axes = plt.subplots(2, 2, figsize=(14, 12))
@@ -111,7 +103,7 @@ def plot_comparison(merged, tcm_df, ddr_df):
     
     packet_sizes = merged['packet_size'].values
     
-    # Plot 1: Mean latency comparison
+    # Top-left: Mean latency with error bars
     ax1 = axes[0, 0]
     ax1.errorbar(packet_sizes, merged['mean_tcm'], yerr=merged['std_tcm'],
                  fmt='bo-', capsize=5, linewidth=2, markersize=8, 
@@ -121,8 +113,7 @@ def plot_comparison(merged, tcm_df, ddr_df):
                  label='DDR', elinewidth=2)
     
     ax1.set_xscale('log', base=2)
-    # Keep linear scale to see TCM clearly
-    # ax1.set_yscale('log')
+    # Keeping y-axis linear so TCM values are actually visible
     ax1.set_xlabel('Packet Size (bytes)', fontsize=11)
     ax1.set_ylabel('Latency (µs)', fontsize=11)
     ax1.set_title('Latency vs Packet Size', fontsize=12, fontweight='bold')
@@ -130,12 +121,13 @@ def plot_comparison(merged, tcm_df, ddr_df):
     ax1.grid(True, which='both', linestyle='--', alpha=0.7)
     ax1.xaxis.set_major_formatter(ScalarFormatter())
     
-    # Plot 2: Speedup
+    # Top-right: Speedup bars
     ax2 = axes[0, 1]
     speedup = merged['mean_ddr'] / merged['mean_tcm']
     bars = ax2.bar(range(len(packet_sizes)), speedup, 
                    color='green', alpha=0.7, edgecolor='black')
     
+    # Add speedup values on top of bars
     for i, (bar, val) in enumerate(zip(bars, speedup)):
         height = bar.get_height()
         ax2.text(bar.get_x() + bar.get_width()/2., height,
@@ -151,7 +143,7 @@ def plot_comparison(merged, tcm_df, ddr_df):
     ax2.grid(True, axis='y', linestyle='--', alpha=0.7)
     ax2.legend(loc='upper right')
     
-    # Plot 3: Jitter comparison (CV)
+    # Bottom-left: Jitter comparison using coefficient of variation
     ax3 = axes[1, 0]
     x = np.arange(len(packet_sizes))
     width = 0.35
@@ -170,10 +162,9 @@ def plot_comparison(merged, tcm_df, ddr_df):
     ax3.legend(loc='upper right')
     ax3.grid(True, axis='y', linestyle='--', alpha=0.7)
     
-    # Plot 4: Latency distributions for one packet size (e.g., 1KB)
+    # Bottom-right: Distribution histogram for 1KB packets
     ax4 = axes[1, 1]
     
-    # Find 1KB data or closest size
     target_size = 1024
     if target_size in packet_sizes:
         tcm_1k = tcm_df[tcm_df['packet_size'] == target_size]['real_latency_us']
@@ -194,7 +185,7 @@ def plot_comparison(merged, tcm_df, ddr_df):
     
     plt.tight_layout()
     
-    # Save plots
+    # Save both PNG and PDF versions
     plt.savefig('tcm_vs_ddr_comparison.png', dpi=300, bbox_inches='tight')
     print("Saved: tcm_vs_ddr_comparison.png")
     
@@ -211,21 +202,21 @@ def main():
     tcm_file = sys.argv[1]
     ddr_file = sys.argv[2]
     
-    # Load data
+    # Load both datasets and compute real latencies
     tcm_df = load_and_compute_real_latency(tcm_file, "TCM")
     ddr_df = load_and_compute_real_latency(ddr_file, "DDR")
     
-    # Compute statistics
+    # Calculate stats for each packet size
     tcm_stats = compute_stats_by_size(tcm_df)
     ddr_stats = compute_stats_by_size(ddr_df)
     
-    # Print comparison
+    # Print the comparison table
     merged = print_comparison(tcm_stats, ddr_stats)
     
-    # Generate plots
+    # Generate the plots
     plot_comparison(merged, tcm_df, ddr_df)
     
-    # Save merged stats
+    # Export merged statistics to CSV
     merged.to_csv('tcm_vs_ddr_stats.csv', index=False)
     print("\nSaved statistics to: tcm_vs_ddr_stats.csv")
     

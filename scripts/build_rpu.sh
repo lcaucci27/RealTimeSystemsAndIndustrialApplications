@@ -1,18 +1,6 @@
-#!/bin/bash
-#
-# RPU firmware build script using Vitis
-#
-# Compiles RPU firmware for Zynq UltraScale+ MPSoC.
-# Needs Vitis 2022.2 installed and set up properly.
-#
-# Usage: ./build_rpu.sh [firmware_name]
-#   firmware_name: Optional, defaults to "rpu_perf_test"
-#                  Options: rpu_perf_test, rpu_coherency_test, rpu_coherency_test_mod
-#
-
 set -e  # Bail if anything fails
 
-# Config - adjust these if your Vitis is installed elsewhere
+# Config, adjust these if your Vitis is installed elsewhere
 VITIS_VERSION="2022.2"
 VITIS_INSTALL_DIR="/tools/Xilinx/Vitis/${VITIS_VERSION}"
 WORKSPACE_DIR="$(pwd)/../vitis_workspace"
