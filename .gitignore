@@ -52,7 +52,6 @@ build/
 # Analysis Output
 output/
 *.png
-*.pdf
 *_report.txt
 *_stats.csv
 *_table.tex
